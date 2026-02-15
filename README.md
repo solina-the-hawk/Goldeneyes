@@ -1,2 +1,2 @@
-# goldsense
-A gold collection tracker for Mudlet, designed for use in IRE's Achaea.
+Goldneyes is a gold tracking system originally based on a fork of Gold Tracker 1.21
+It has been rewritten from the ground up at this point, but started as an effort to add effective tracking of gold picked up by party members, and more functional distribution of collected gold. !

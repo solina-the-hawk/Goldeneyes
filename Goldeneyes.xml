@@ -1,0 +1,1061 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE MudletPackage>
+<MudletPackage version="1.001">
+	<TriggerPackage>
+		<TriggerGroup isActive="yes" isFolder="yes" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+			<name>Goldeneyes</name>
+			<script></script>
+			<triggerType>0</triggerType>
+			<conditonLineDelta>0</conditonLineDelta>
+			<mStayOpen>0</mStayOpen>
+			<mCommand></mCommand>
+			<packageName></packageName>
+			<mFgColor>#ff0000</mFgColor>
+			<mBgColor>#ffff00</mBgColor>
+			<mSoundFile></mSoundFile>
+			<colorTriggerFgColor>#000000</colorTriggerFgColor>
+			<colorTriggerBgColor>#000000</colorTriggerBgColor>
+			<regexCodeList />
+			<regexCodePropertyList />
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>Gold Picked Up - Update Totals</name>
+				<script>local amount = tonumber(matches[2])
+if amount then
+  -- OLD: goldtracking.plus(amount, true)
+  -- NEW: The handler decides if we count it or give it away
+  goldtracking.handle_loot(amount)
+end</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand></mCommand>
+				<packageName></packageName>
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile></mSoundFile>
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^You (?:pick|scoop) up (\d+) gold</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>Gold Dropped - Grab It</name>
+				<script>-- This sends the command to pick up gold from the floor if the goldtracking.pickup setting is on.
+if goldtracking.enabled and goldtracking.pickup then
+  send("queue add eqbal get gold")
+end</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand></mCommand>
+				<packageName></packageName>
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile></mSoundFile>
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^A.*sovereigns? spills? from the corpse</string>
+					<string>A pile of golden sovereigns twinkles and gleams.</string>
+					<string>There is.*pile of golden sovereigns here.</string>
+					<string>pile of .*sovereigns?</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+					<integer>1</integer>
+					<integer>1</integer>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>Gold Tracking - Received</name>
+				<script>-- Remove commas from the number string so Lua can do math (e.g., "1,000" -&gt; "1000")
+local name = matches[2]
+local amount_string = matches[3]:gsub(",", "") 
+local amount = tonumber(amount_string)
+local name_key = name:lower()
+
+if goldtracking.names[name_key] then
+    -- 1. Add to the main pot
+    goldtracking.plus(amount)
+    
+    -- 2. Update the Ledger (reduce their debt)
+    if goldtracking.ledger[name_key] then
+        local old_debt = goldtracking.ledger[name_key]
+        goldtracking.ledger[name_key] = old_debt - amount
+        
+        cecho(string.format("\n&lt;msSilver&gt;[&lt;msGold&gt;GoldTracking&lt;msSilver&gt;]: %s paid off %d (Remaining: %d).", name, amount, goldtracking.ledger[name_key]))
+        
+        -- If they paid it all off (or overpaid), clear the entry
+        if goldtracking.ledger[name_key] &lt;= 0 then
+            goldtracking.ledger[name_key] = nil
+            cecho("\n&lt;msSilver&gt;[&lt;msGold&gt;GoldTracking&lt;msSilver&gt;]: %s has settled their debt.", name)
+        end
+    else
+        -- They weren't in the ledger, but we tracked the gold anyway
+        cecho(string.format("\n&lt;msSilver&gt;[&lt;msGold&gt;GoldTracking&lt;msSilver&gt;]: Accepted %d gold from %s (No prior debt).", amount, name))
+    end
+else
+end</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand></mCommand>
+				<packageName></packageName>
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile></mSoundFile>
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^(\w+) gives you ([\d,]+) gold</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>Gold Tracking - Watchdog</name>
+				<script>local name = matches[2]
+local amount = tonumber(matches[3])
+local name_key = name:lower()
+
+-- Only watch people we are tracking
+if goldtracking.names[name_key] then
+    -- 1. Add to the Ledger
+    goldtracking.ledger[name_key] = (goldtracking.ledger[name_key] or 0) + amount
+    
+    -- 2. Alert you visually
+    cecho(string.format("\n&lt;msSilver&gt;[&lt;msGold&gt;GoldTracking&lt;msSilver&gt;]: &lt;orange&gt;ALERT&lt;msSilver&gt;: &lt;msGold&gt;%s&lt;msSilver&gt; picked up &lt;orange&gt;%d&lt;msSilver&gt; gold!", name, amount))
+end</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand></mCommand>
+				<packageName></packageName>
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile></mSoundFile>
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^(\w+) (?:picks|scoops) up (\d+) gold</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>Capture Gold - All Sources</name>
+				<script>if goldtracking.capture_mode then
+    local line = matches[1]
+    local total_hand = 0
+    local total_bank = 0
+
+    -- Loop through the line to find all gold amounts
+    for amount_str, location in string.gmatch(line, "([%d,]+) gold sovereigns? in your (%w+)") do
+        
+        -- FIX: The extra parentheses around string.gsub discard the second return value
+        local clean_str = (string.gsub(amount_str, ",", ""))
+        local amount = tonumber(clean_str)
+
+        -- Sort into piles
+        if location == "inventory" then
+            total_hand = total_hand + amount
+        elseif location == "containers" then
+            total_hand = total_hand + amount
+        elseif location == "bank" then
+            total_bank = total_bank + amount
+        end
+    end
+
+    -- Send to processor
+    goldtracking.process_gold_capture(total_hand, total_bank)
+end</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand></mCommand>
+				<packageName></packageName>
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile></mSoundFile>
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^You have .* gold sovereigns? in your .*</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>Shop Purchase</name>
+				<script>goldtracking.add_expense(tonumber(matches[2]))</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand></mCommand>
+				<packageName></packageName>
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile></mSoundFile>
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^You pay (\d+) gold sovereigns\.$</string>
+					<string>^You buy .* for (\d+) gold\.$</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>0</integer>
+					<integer>0</integer>
+				</regexCodePropertyList>
+			</Trigger>
+		</TriggerGroup>
+		<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+			<name>Gold Tracking - Mystery Gold Pickups</name>
+			<script>local name = matches[2]
+local name_key = name:lower()
+
+-- Only watch people we are tracking
+if goldtracking.names[name_key] then
+    -- Increment the unknown counter
+    goldtracking.unknown_ledger[name_key] = (goldtracking.unknown_ledger[name_key] or 0) + 1
+    
+    -- RED ALERT
+    cecho(string.format("\n&lt;red&gt;[ALERT]: %s picked up a MYSTERY pile of gold! (Auto-loot artifact detected)", name))
+    cecho("\n&lt;red&gt;       Please ask them how much they got and use 'gold plus &lt;amount&gt;'.")
+end</script>
+			<triggerType>0</triggerType>
+			<conditonLineDelta>0</conditonLineDelta>
+			<mStayOpen>0</mStayOpen>
+			<mCommand></mCommand>
+			<packageName></packageName>
+			<mFgColor>#ff0000</mFgColor>
+			<mBgColor>#ffff00</mBgColor>
+			<mSoundFile></mSoundFile>
+			<colorTriggerFgColor>#000000</colorTriggerFgColor>
+			<colorTriggerBgColor>#000000</colorTriggerBgColor>
+			<regexCodeList>
+				<string>^Some gold falls from the corpse and automatically flies into the hands of (\w+)\.</string>
+				<string>^.*sovereigns spills from the corpse, flying into the hands of.*before they </string>
+			</regexCodeList>
+			<regexCodePropertyList>
+				<integer>1</integer>
+				<integer>1</integer>
+			</regexCodePropertyList>
+		</Trigger>
+		<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+			<name>Bribes/Giving</name>
+			<script>-- Be careful! If you are distributing loot, this counts as an expense trigger!
+-- We only want to track this if it's NOT a distribution.
+-- Usually better to leave 'give' manual or strictly for shops.</script>
+			<triggerType>0</triggerType>
+			<conditonLineDelta>0</conditonLineDelta>
+			<mStayOpen>0</mStayOpen>
+			<mCommand></mCommand>
+			<packageName></packageName>
+			<mFgColor>#ff0000</mFgColor>
+			<mBgColor>#ffff00</mBgColor>
+			<mSoundFile></mSoundFile>
+			<colorTriggerFgColor>#000000</colorTriggerFgColor>
+			<colorTriggerBgColor>#000000</colorTriggerBgColor>
+			<regexCodeList>
+				<string>^You give (\d+) gold to .*$</string>
+			</regexCodeList>
+			<regexCodePropertyList>
+				<integer>1</integer>
+			</regexCodePropertyList>
+		</Trigger>
+	</TriggerPackage>
+	<TimerPackage />
+	<AliasPackage>
+		<AliasGroup isActive="yes" isFolder="yes">
+			<name>Goldeneyes</name>
+			<script></script>
+			<command></command>
+			<packageName></packageName>
+			<regex></regex>
+		</AliasGroup>
+		<Alias isActive="yes" isFolder="no">
+			<name>Gold Tracking Controller</name>
+			<script>local args_str = matches[2] or ""
+local args = args_str:split(" ")
+local cmd = args[1] and args[1]:lower() or ""
+
+-- If no command is typed (just "gold"), show the display
+if cmd == "" then
+    goldtracking.display()
+
+-- Help menu
+elseif cmd == "help" then
+    goldtracking.help()
+    cecho("  &lt;msGold&gt;gold container &lt;name&gt; &lt;msSilver&gt;- Set your loot bag.\n")
+    cecho("  &lt;msGold&gt;gold stash &lt;msSilver&gt;- Put all gold in the loot bag.\n")
+
+-- Toggle the tracker entirely
+elseif cmd == "on" or cmd == "off" then
+    goldtracking.toggle(cmd)
+
+-- Toggle Autoloot specificallly
+elseif cmd == "autoloot" then
+    goldtracking.togglepickup(args[2] or "")
+
+-- Set the loot container
+elseif cmd == "container" then
+    if args[2] then 
+        goldtracking.setcontainer(args[2]) 
+    else
+        cecho("\n&lt;msSilver&gt;Usage: &lt;msGold&gt;gold container &lt;name&gt;")
+    end
+
+-- Stash gold into the container
+elseif cmd == "stash" then
+    goldtracking.stash()
+
+-- Add a person to the split
+elseif cmd == "add" then
+    if args[2] then goldtracking.add(args[2]) end
+
+-- Remove a person from the split
+elseif cmd == "remove" then
+    if args[2] then goldtracking.remove(args[2]) end
+
+-- Manually add gold (e.g. "gold plus 100")
+elseif cmd == "plus" then
+    local amt = tonumber(args[2])
+    if amt then goldtracking.plus(amt) end
+
+-- Manually subtract gold
+elseif cmd == "minus" then
+    local amt = tonumber(args[2])
+    if amt then goldtracking.minus(amt) end
+
+-- Pause a specific person (keeps them in list but stops tracking)
+elseif cmd == "pause" then
+    if args[2] then goldtracking.pause(args[2]) end
+
+-- Unpause a person
+elseif cmd == "unpause" then
+    if args[2] then goldtracking.unpause(args[2]) end
+
+-- Reset everything to 0
+elseif cmd == "reset" then
+    goldtracking.reset()
+
+-- Distribute gold from container to group
+elseif cmd == "distribute" then
+    goldtracking.distribute()
+
+elseif cmd == "snapshot" then
+    goldtracking.start_snapshot()
+
+-- Check for hidden rewards
+elseif cmd == "check" then
+    goldtracking.check_reward()
+
+-- Announce totals to party
+elseif cmd == "report" then
+    goldtracking.announce("party")
+
+-- Set the Accountant
+elseif cmd == "accountant" then
+    if args[2] then 
+        goldtracking.set_accountant(args[2]) 
+    else
+        cecho("\n&lt;msSilver&gt;Current Accountant: &lt;msGold&gt;" .. goldtracking.accountant)
+    end
+
+-- Simulate a loot drop (Manual Handover/Report)
+elseif cmd == "loot" then
+    local amt = tonumber(args[2])
+    if amt then 
+        goldtracking.handle_loot(amt) 
+    else
+        cecho("\n&lt;msSilver&gt;Usage: &lt;msGold&gt;gold loot &lt;amount&gt;")
+    end
+
+-- Toggle Auto-Handover
+elseif cmd == "autohandover" then
+    goldtracking.toggle_handover(args[2] or "")
+
+else
+    cecho("\n&lt;msSilver&gt;Unknown command. Try &lt;msGold&gt;gold help&lt;msSilver&gt;.")
+end</script>
+			<command></command>
+			<packageName></packageName>
+			<regex>^(?:goldtracking|gold)(?: (.*))?$</regex>
+		</Alias>
+	</AliasPackage>
+	<ActionPackage />
+	<ScriptPackage>
+		<ScriptGroup isActive="yes" isFolder="yes">
+			<name>Goldeneyes</name>
+			<packageName></packageName>
+			<script>-------------------------------------------------------------------------------
+--                         Solina's Gold Tracking                            --
+-------------------------------------------------------------------------------
+-- Originally a fork from a package named GoldTracker Complete 1.2.1, every  --
+-- function has been rewritten or redesigned at this point, but the core     --
+-- ideas and design belong to that author!                                   --
+-------------------------------------------------------------------------------</script>
+			<eventHandlerList />
+		</ScriptGroup>
+		<Script isActive="yes" isFolder="no">
+			<name>goldtracking.settings</name>
+			<packageName></packageName>
+			<script>goldtracking = goldtracking or {}
+goldtracking.settings = {}
+
+
+-- =========================================================== --
+--                 Gold Tracking Settings                      --
+--                      Edit as Needed                         --
+-- =========================================================== --
+
+-- If you use an ingame command separator, add it here so the  --
+-- system can use it to break up party announcements.          --
+goldtracking.settings.commandseparator = ";"
+
+-- This setting is used to set an alias to get gold or put
+-- gold away. If you use nested containers, wish to add emotes --
+-- or other scenarios, enter the serverside alias you use here --
+-- !!This is currently not used after a rewrite, needs fix!!   -- 
+goldtracking.settings.getalias = false
+
+-- Set the container name in which we should put your gold.    --
+-- Note that it may be desirable *not* to use the container    --
+-- you keep your personal gold in, so that it's easier to keep --
+-- everything separated. If left false, "pack" will be used    --
+-- instead. This is only used if you leave the getalias        --
+-- setting set to false.                                       --
+goldtracking.settings.container = "box"
+
+-- If you use a custom prompt function, such as with svo, you  --
+-- can put that here to make commands look more natural.       --
+goldtracking.settings.promptfunction = false
+--goldtracking.settings.promptfunction = function ()
+--  cecho ("\n")
+--end -- Function ends here.
+
+-- This copies any changes you made here into the settings     --
+-- table in your variables.                                    --
+if goldtracking.getsettings then goldtracking.getsettings () end</script>
+			<eventHandlerList />
+		</Script>
+		<Script isActive="yes" isFolder="no">
+			<name>goldtracking</name>
+			<packageName></packageName>
+			<script>-- =========================================================== --
+--              Gold Tracking Functions &amp; Logic                --
+--                  Fragile! Don't Touch!                      --
+-- =========================================================== --
+
+goldtracking = goldtracking or {}
+goldtracking.settings = goldtracking.settings or {}
+
+-- 1. Initialize Colors
+color_table.msGold = {255,215,0}
+color_table.msSilver = {160,160,160}
+
+-- 2. Initialize Defaults
+if goldtracking.enabled == nil then goldtracking.enabled = true end
+goldtracking.pickup = goldtracking.pickup or true
+goldtracking.names = goldtracking.names or {}
+goldtracking.paused = goldtracking.paused or {}
+goldtracking.total = goldtracking.total or 0
+goldtracking.org = goldtracking.org or {name = false, percent = 0, gold = 0}
+goldtracking.starttime = goldtracking.starttime or os.time()
+goldtracking.ledger = goldtracking.ledger or {}
+goldtracking.unknown_ledger = goldtracking.unknown_ledger or {}
+goldtracking.snapshot = goldtracking.snapshot or {hand = 0, bank = 0, phase = nil}
+goldtracking.baseline = goldtracking.baseline or {hand = 0, bank = 0, set = false}
+goldtracking.expenses = goldtracking.expenses or 0
+-- Safe check for name in case script loads before login
+local my_name = (gmcp and gmcp.Char and gmcp.Char.Name and gmcp.Char.Name.name) or "Solina"
+goldtracking.accountant = goldtracking.accountant or my_name
+goldtracking.autohandover = goldtracking.autohandover or false
+
+-- =========================================================== --
+--                     HELPER FUNCTIONS                        --
+-- =========================================================== --
+
+-- Helper function to count table size
+function goldtracking.count(t)
+  local count = 0
+  for _ in pairs(t) do count = count + 1 end
+  return count
+end
+
+-- Helper for echo formatting
+goldtracking.echo = function (x)
+  cecho ("\n&lt;msSilver&gt;[&lt;msGold&gt;GoldTracking&lt;msSilver&gt;]: " .. x .. "&lt;reset&gt;")
+end
+
+-- Load settings
+goldtracking.getsettings = function ()
+  if goldtracking.settings then
+      goldtracking.cs = goldtracking.settings.commandseparator or ";"
+      goldtracking.getalias = goldtracking.settings.getalias
+      goldtracking.container = goldtracking.settings.container or "pack"
+      goldtracking.showprompt = goldtracking.settings.promptfunction or function() end
+  end
+end
+goldtracking.getsettings()
+
+-- =========================================================== --
+--                     CORE FUNCTIONS                          --
+-- =========================================================== --
+
+-- Display Function (The Accountant Report)
+goldtracking.display = function ()
+  local status = goldtracking.enabled and "&lt;msGold&gt;enabled" or "&lt;msSilver&gt;disabled"
+  local my_name = (gmcp and gmcp.Char and gmcp.Char.Name and gmcp.Char.Name.name) or "Unknown"
+  local accountant = goldtracking.accountant or my_name
+  local role = (accountant:lower() == my_name:lower()) and "&lt;green&gt;(Me)" or "&lt;yellow&gt;(" .. accountant .. ")"
+
+  -- 1. Calculate Time and GPH
+  local elapsed = os.time() - goldtracking.starttime
+  if elapsed &lt; 1 then elapsed = 1 end
+  local gph = math.floor((goldtracking.total / elapsed) * 3600)
+
+  cecho ("\n")
+  cecho ("     &lt;msGold&gt;Gold Tracking " .. status .. " &lt;msSilver&gt;Accountant: " .. role .. "\n")
+  cecho ("\n")
+
+  -- 2. Show Total and GPH
+  cecho ("      &lt;msSilver&gt;Total Pot:  &lt;msGold&gt;" .. goldtracking.total .. "\n")
+  cecho ("      &lt;msSilver&gt;Gold/Hour:  &lt;msGold&gt;" .. gph .. "\n")
+
+  -- 3. Org Split Code
+  if goldtracking.org.name then
+    local name = goldtracking.org.name
+    local gold = math.floor (goldtracking.org.gold)
+    cecho ("\n")
+    local percent = goldtracking.org.percent
+    cecho ("  &lt;msSilver&gt;" .. string.format ("%14s", name:title ()) ..
+           ": &lt;msGold&gt;" .. string.format ("%-8s", gold) ..
+           " &lt;msSilver&gt;(" .. percent ..  "%)\n")
+  end
+
+  -- 4. Individual Split Code
+  if goldtracking.count(goldtracking.names) &gt; 0 then cecho ("\n") end
+  for k, v in pairs (goldtracking.names) do
+    local v = math.floor (v)
+    cecho ("  &lt;msSilver&gt;" .. string.format ("%14s", k:title ()) .. ": &lt;msGold&gt;" .. v .. "\n")
+  end
+
+  -- 5. Watchdog Ledger (Known Debt + Unknown Piles)
+  local ledger_count = goldtracking.count(goldtracking.ledger)
+  local unknown_count = goldtracking.count(goldtracking.unknown_ledger)
+
+  if ledger_count &gt; 0 or unknown_count &gt; 0 then
+      cecho ("\n&lt;orange&gt;     -- Gold Held by Others --\n")
+
+      -- Combine the list of names from both ledgers
+      local all_holders = {}
+      for k,v in pairs(goldtracking.ledger) do all_holders[k] = true end
+      for k,v in pairs(goldtracking.unknown_ledger) do all_holders[k] = true end
+
+      for k, _ in pairs(all_holders) do
+          local debt = goldtracking.ledger[k] or 0
+          local unknown = goldtracking.unknown_ledger[k] or 0
+
+          local str = string.format("  &lt;msSilver&gt;%14s: ", k:title())
+
+          if debt &gt; 0 then
+              str = str .. "&lt;orange&gt;" .. math.floor(debt) .. " gold "
+          end
+
+          if unknown &gt; 0 then
+              str = str .. "&lt;red&gt;(+" .. unknown .. " unknown piles!)"
+          end
+
+          cecho(str .. "\n")
+      end
+  end
+
+  cecho ("&lt;reset&gt;\n")
+  goldtracking.showprompt ()
+end
+
+-- Set Accountant
+goldtracking.set_accountant = function(name)
+    goldtracking.accountant = name:title()
+    goldtracking.echo("Accountant set to &lt;msGold&gt;" .. name)
+    goldtracking.showprompt()
+end
+
+-- Toggle Auto Handover
+goldtracking.toggle_handover = function(val)
+    if val == "on" then
+        goldtracking.autohandover = true
+        goldtracking.echo("Auto-Handover &lt;green&gt;ENABLED&lt;msSilver&gt;. I will give gold to " .. goldtracking.accountant)
+    else
+        goldtracking.autohandover = false
+        goldtracking.echo("Auto-Handover &lt;red&gt;DISABLED&lt;msSilver&gt;.")
+    end
+end
+
+-- Toggle Entire System
+goldtracking.toggle = function (enabled)
+  local x = goldtracking
+  local state = enabled:lower() == "on"
+  x.enabled = state
+
+  -- If enabling and empty, add self to tracking list.
+  if state and x.count(x.names) == 0 and gmcp.Char and gmcp.Char.Name then
+      x.add (gmcp.Char.Name.name:lower ())
+  end
+
+  local msg = state and "&lt;msGold&gt;enabled" or "&lt;msSilver&gt;disabled"
+  x.echo ("tracking " .. msg)
+  x.showprompt ()
+end
+
+-- Math Logic (Add to Totals)
+goldtracking.plus = function (amt, noecho)
+  local x = goldtracking
+
+  -- 1. Org Split
+  if x.org.name then
+    x.org.gold = x.org.gold + amt * (x.org.percent/100)
+    amt = amt * ( 1 - x.org.percent/100)
+  end
+
+  -- 2. Party Split
+  local num = goldtracking.count(x.names)
+  if num &gt; 0 then
+      local split_share = amt / num
+      for k, v in pairs (x.names) do
+        x.names[k] = v + split_share
+      end
+  end
+
+  -- 3. Total
+  x.total = x.total + amt
+
+  if not noecho then
+    x.echo ("&lt;msGold&gt;" .. amt .. " &lt;msSilver&gt;gold added")
+  end
+  x.showprompt ()
+end
+
+-- Math Logic (Subtract from Totals)
+goldtracking.minus = function (amt)
+  local x = goldtracking
+  local i = amt
+  if x.org.name then
+    x.org.gold =  x.org.gold - i * (x.org.percent/100)
+    i = i * ( 1 - x.org.percent/100)
+  end
+
+  local num = x.count(x.names)
+  if num &gt; 0 then
+      local split_share = i / num
+      for k, v in pairs (x.names) do
+        x.names[k] = v - split_share
+      end
+  end
+
+  x.total = x.total - amt
+  x.echo ("&lt;msGold&gt;" .. amt .. " &lt;msSilver&gt;gold removed.")
+  x.showprompt ()
+end
+
+-- Decision Maker (Loot Handler)
+goldtracking.handle_loot = function (amt)
+  -- SAFETY: If the tracker is disabled, do absolutely nothing.
+  if not goldtracking.enabled then return end
+
+  local my_name = (gmcp and gmcp.Char and gmcp.Char.Name and gmcp.Char.Name.name) or "Unknown"
+  local acc = goldtracking.accountant or my_name
+
+  -- Scenario A: I AM the Accountant (or no accountant set)
+  if acc == my_name then
+      goldtracking.plus(amt, true)
+
+  -- Scenario B: I am NOT the Accountant (Worker Mode)
+  else
+      if goldtracking.autohandover then
+          send("give " .. amt .. " gold to " .. acc)
+          goldtracking.echo("Looted &lt;msGold&gt;"..amt.."&lt;msSilver&gt;. Handing over to &lt;msGold&gt;"..acc)
+      else
+          send("pt I picked up " .. amt .. " gold.")
+          goldtracking.echo("Looted &lt;msGold&gt;"..amt.."&lt;msSilver&gt;. Reported to party.")
+      end
+  end
+end
+
+-- Add Person
+goldtracking.add = function (name)
+  local name = name:lower()
+  local x = goldtracking
+  if x.names[name] == nil then
+    x.echo ("Added &lt;msGold&gt;" .. name:title () .. " &lt;msSilver&gt;to tracking.")
+    x.names[name] = 0
+  else
+    x.echo ("&lt;msGold&gt;" .. name:title () .. " &lt;msSilver&gt;is already being tracked.")
+  end
+  x.showprompt ()
+end
+
+-- Remove Person
+goldtracking.remove = function (name)
+  local name = name:lower()
+  local x = goldtracking
+  if x.names[name] ~= nil then
+    x.echo ("removed &lt;msGold&gt;" .. name:title () .. " &lt;msSilver&gt;from tracking")
+    x.echo ("&lt;msGold&gt;" .. name:title () .. " &lt;msSilver&gt;was at &lt;msGold&gt;" .. math.floor (x.names[name]) .. " &lt;msSilver&gt;gold.")
+    x.names[name] = nil
+  else
+    x.echo ("&lt;msGold&gt;" .. name .. " &lt;msSilver&gt;is not currently being tracked.")
+  end
+  x.showprompt ()
+end
+
+-- Org Settings
+goldtracking.setorg = function (name, percent)
+  name = name:lower ()
+  local x = goldtracking
+  if percent &gt; 100 then
+    x.echo ("org percent should be between 0 and 100.")
+  else
+    x.echo ("org set to &lt;msGold&gt;" .. name .. " &lt;msSilver&gt;at &lt;msGold&gt;"..percent.."%")
+    x.org.name = name
+    x.org.percent = percent
+  end
+  x.showprompt ()
+end
+
+goldtracking.unsetorg = function ()
+  local x = goldtracking
+  if x.org.name == false then
+    x.echo ("no org currently set")
+  else
+    x.echo ("org unset. &lt;msGold&gt;" .. x.org.name:title () .. " &lt;msSilver&gt;had &lt;msGold&gt;" .. math.floor(x.org.gold))
+  end
+  x.org = {name = false, percent = 0, gold = 0}
+  x.showprompt ()
+end
+
+-- Pausing
+goldtracking.pause = function (name)
+  local name = name:lower()
+  local x = goldtracking
+  if x.names[name] ~= nil then
+    x.echo ("Gold tracking for &lt;msGold&gt;" .. name:title () .. " &lt;msSilver&gt;paused.")
+    x.paused[name] = x.names[name]
+    x.names[name] = nil
+  else
+    x.echo ("&lt;msGold&gt;" .. name:title () .. " &lt;msSilver&gt;is not currently being tracked.")
+  end
+  x.showprompt ()
+end
+
+goldtracking.unpause = function (name)
+  local name = name:lower()
+  local x = goldtracking
+  if x.paused[name] then
+    x.echo ("Gold tracking for &lt;msGold&gt;" .. name:title () .. " &lt;msSilver&gt;unpaused.")
+    x.names[name] = x.paused[name]
+    x.paused[name] = nil
+  else
+    x.echo ("&lt;msGold&gt;" .. name:title () .. " &lt;msSilver&gt;is not currently paused.")
+  end
+  x.showprompt ()
+end
+
+-- Reset All
+-- Function 1: The Prompt (Run when you type 'gold reset')
+-- FIX 2: Add a safety prompt to 'gold reset'
+goldtracking.reset = function ()
+  cecho("\n&lt;msSilver&gt;[&lt;msGold&gt;GoldTracking&lt;msSilver&gt;]: &lt;red&gt;WARNING!&lt;msSilver&gt; This will wipe ALL data (Total: " .. goldtracking.total .. ").\n")
+  cecho("&lt;msSilver&gt;Are you sure? ")
+  
+  -- FIX: execute the Lua function directly instead of sending a command
+  cechoLink("&lt;red&gt;[CONFIRM RESET]", "goldtracking.confirm_reset()", "Click to wipe all data")
+  
+  cecho("\n")
+end
+
+-- Function 2: The Execution (Run when you click the link)
+goldtracking.confirm_reset = function()
+  local x = goldtracking
+  
+  -- Clear Data
+  x.names = {}
+  x.paused = {}
+  x.ledger = {}
+  x.unknown_ledger = {}
+  x.org = {name = false, percent = 0, gold = 0}
+  x.total = 0
+  x.expenses = 0
+  x.starttime = os.time()
+
+  -- Re-add self
+  if gmcp.Char and gmcp.Char.Name then
+      x.add(gmcp.Char.Name.name)
+  end
+  
+  -- Re-establish baseline
+  goldtracking.set_baseline()
+  
+  x.echo ("&lt;red&gt;Tracker has been reset.&lt;reset&gt;")
+  x.showprompt ()
+end
+
+-- Announce / Report
+goldtracking.announce = function (tar, origin)
+  if goldtracking.enabled then
+    tar = tar:lower ()
+    local x = ""
+
+    if tar == "party" then
+      x = "pt We've collected " .. goldtracking.total .. " gold this trip."
+      if goldtracking.org.name then
+        local o = goldtracking.org
+        x = x .. goldtracking.cs .. "pt We've collected " .. math.floor(o.gold) .. " gold for " .. o.name:title ()
+      end
+      for k, v in pairs (goldtracking.names) do
+        x = x .. goldtracking.cs .. "pt  " .. k:title() .. " has " .. math.floor(v) .. " gold."
+      end
+      expandAlias (x)
+    else
+        local amt = 0
+        if goldtracking.names[tar] then amt = goldtracking.names[tar]
+        elseif goldtracking.paused[tar] then amt = goldtracking.paused[tar] end
+        send ("tell " .. tar .. " You currently have " .. math.floor(amt) .. " gold tracked.")
+    end
+  end
+end
+
+-- Distribute
+goldtracking.distribute = function ()
+  local cont = goldtracking.container or "pack"
+
+  -- 1. Retrieve the loot from the stash
+  send ("get gold from " .. cont)
+
+  -- 2. Distribute it
+  for k, v in pairs (goldtracking.names) do
+    if k ~= gmcp.Char.Name.name:lower () then
+      v = math.floor (v)
+      if v &gt; 0 then send ("give " .. v .. " gold to " .. k) end
+    end
+  end
+
+  goldtracking.echo("Distributed gold from &lt;msGold&gt;" .. cont)
+
+  -- 3. The Safety Prompt
+  cecho("\n\n&lt;msSilver&gt;Distribution complete. Verify everyone received their share.\n")
+  cecho("&lt;msSilver&gt;When you are sure, ")
+  cechoLink("&lt;red&gt;[CLICK HERE TO RESET]", "gold reset", "Click to wipe the tracker data", true)
+  cecho("&lt;msSilver&gt; tracking or type &lt;msGold&gt;gold reset&lt;msSilver&gt;.\n")
+end
+
+-- Toggle Pickup
+goldtracking.togglepickup = function (enabled)
+  local x = goldtracking
+  local state = enabled:lower()
+
+  if state == "on" then
+    x.pickup = true
+    x.echo("auto-pickup &lt;msGold&gt;enabled")
+  elseif state == "off" then
+    x.pickup = false
+    x.echo("auto-pickup &lt;msSilver&gt;disabled")
+  else
+    x.echo("Usage: goldtracking autoloot &lt;on|off&gt;")
+  end
+end
+
+-- Help
+goldtracking.help = function ()
+    cecho ("\n")
+    cecho ("&lt;msGold&gt;GOLD TRACKING HELP &lt;msSilver&gt;(Commands start with &lt;msGold&gt;gold&lt;msSilver&gt; or &lt;msGold&gt;goldtracking&lt;msSilver&gt;)\n")
+    cecho ("&lt;msSilver&gt;----------------------------------------------------------------------\n")
+    cecho ("&lt;msGold&gt;  BASIC CONTROLS\n")
+    cecho ("    &lt;msGold&gt;gold &lt;on|off&gt;          &lt;msSilver&gt;- Turn the entire tracker on or off.\n")
+    cecho ("    &lt;msGold&gt;gold reset             &lt;msSilver&gt;- Reset all totals to 0.\n")
+    cecho ("    &lt;msGold&gt;gold report            &lt;msSilver&gt;- Announce current totals to Party.\n")
+
+    cecho ("\n&lt;msGold&gt;  LOOT &amp; AUTOMATION\n")
+    cecho ("    &lt;msGold&gt;gold autoloot &lt;on|off&gt; &lt;msSilver&gt;- Toggle auto-looting from the ground.\n")
+    cecho ("    &lt;msGold&gt;gold container &lt;name&gt;  &lt;msSilver&gt;- Set your loot bag (e.g., 'pack').\n")
+    cecho ("    &lt;msGold&gt;gold stash             &lt;msSilver&gt;- Move all carried gold to your container.\n")
+    cecho ("    &lt;msGold&gt;gold distribute        &lt;msSilver&gt;- Empty container and share gold with group.\n")
+
+    cecho ("\n&lt;msGold&gt;  GROUP &amp; ACCOUNTING\n")
+    cecho ("    &lt;msGold&gt;gold accountant &lt;name&gt; &lt;msSilver&gt;- Designate the banker (Default: You).\n")
+    cecho ("    &lt;msGold&gt;gold autohandover &lt;on|off&gt; &lt;msSilver&gt;- Automatically give loot to Accountant.\n")
+    cecho ("    &lt;msGold&gt;gold add &lt;name&gt;        &lt;msSilver&gt;- Add a person to the split list.\n")
+    cecho ("    &lt;msGold&gt;gold remove &lt;name&gt;     &lt;msSilver&gt;- Remove a person from the list.\n")
+    cecho ("    &lt;msGold&gt;gold pause &lt;name&gt;      &lt;msSilver&gt;- Pause a person (keep in list, stop tracking).\n")
+
+    cecho ("\n&lt;msGold&gt;  ADVANCED &amp; MANUAL\n")
+    cecho ("    &lt;msGold&gt;gold snapshot / check  &lt;msSilver&gt;- Capture 'Show Gold' to find hidden rewards.\n")
+    cecho ("    &lt;msGold&gt;gold loot &lt;amount&gt;     &lt;msSilver&gt;- Manually simulate picking up loot.\n")
+    cecho ("    &lt;msGold&gt;gold plus &lt;amount&gt;     &lt;msSilver&gt;- Manually add to Total (Math only).\n")
+    cecho ("    &lt;msGold&gt;gold minus &lt;amount&gt;    &lt;msSilver&gt;- Manually subtract from Total.\n")
+    cecho ("\n")
+    goldtracking.showprompt ()
+end
+
+-- Container and Expenses
+goldtracking.setcontainer = function(name)
+  goldtracking.container = name
+  goldtracking.echo("Container set to &lt;msGold&gt;" .. name)
+  goldtracking.showprompt()
+end
+
+goldtracking.stash = function()
+  local cont = goldtracking.container or "pack"
+  send("put gold in " .. cont)
+  goldtracking.echo("Stashed all gold into &lt;msGold&gt;" .. cont)
+end
+
+goldtracking.add_expense = function(amount)
+    goldtracking.expenses = goldtracking.expenses + amount
+    cecho(string.format("\n&lt;msSilver&gt;[&lt;msGold&gt;GoldTracking&lt;msSilver&gt;]: Recorded expense of &lt;msGold&gt;%d&lt;msSilver&gt; gold.", amount))
+end
+
+-- Reward / Snapshot Functions
+goldtracking.set_baseline = function()
+    goldtracking.baseline.set = false
+    goldtracking.capture_mode = "baseline"
+    send("show gold")
+end
+
+goldtracking.check_reward = function()
+    -- If we don't have a baseline yet, we can't calculate a reward.
+    if not goldtracking.baseline.set then
+        cecho("\n&lt;msSilver&gt;[&lt;msGold&gt;GoldTracking&lt;msSilver&gt;]: &lt;yellow&gt;Warning:&lt;msSilver&gt; No baseline established yet (or trigger missed).")
+        cecho("\n&lt;msSilver&gt;Attempting to establish baseline now. Please type &lt;msGold&gt;gold check&lt;msSilver&gt; again after your &lt;msGold&gt;NEXT&lt;msSilver&gt; reward.")
+        
+        -- Try to set the baseline now, but DO NOT reset the existing tracker totals
+        goldtracking.set_baseline()
+        return
+    end
+
+    goldtracking.capture_mode = "check"
+    send("show gold")
+end
+
+goldtracking.process_gold_capture = function(hand, bank)
+    -- SAFETY: Check types before removing commas. 
+    -- If the trigger did the math, these are already numbers.
+    if type(hand) == "string" then 
+        hand = tonumber(string.gsub(hand, ",", "")) 
+    end
+    if type(bank) == "string" then 
+        bank = tonumber(string.gsub(bank, ",", "")) 
+    end
+    
+    -- Ensure we have valid numbers (fallback to 0)
+    hand = hand or 0
+    bank = bank or 0
+    
+    if goldtracking.capture_mode == "baseline" then
+        goldtracking.baseline.hand = hand
+        goldtracking.baseline.bank = bank
+        goldtracking.baseline.set = true
+        cecho("\n&lt;msSilver&gt;[&lt;msGold&gt;GoldTracking&lt;msSilver&gt;]: Baseline set. Hand: " .. hand .. ", Bank: " .. bank)
+        
+    elseif goldtracking.capture_mode == "check" then
+        -- Calculate current Total Wealth
+        local current_total = hand + bank
+        local start_total = goldtracking.baseline.hand + goldtracking.baseline.bank
+        
+        -- The Core Formula
+        local wealth_change = current_total - start_total
+        local hidden_profit = wealth_change + goldtracking.expenses - goldtracking.total
+        
+        if hidden_profit &gt; 0 then
+            cecho(string.format("\n&lt;msSilver&gt;[&lt;msGold&gt;GoldTracking&lt;msSilver&gt;]: &lt;orange&gt;Hidden Reward Detected!&lt;msSilver&gt; You gained &lt;msGold&gt;%d&lt;msSilver&gt; gold.", hidden_profit))
+            goldtracking.plus(hidden_profit)
+        elseif hidden_profit &lt; 0 then
+             cecho(string.format("\n&lt;msSilver&gt;[&lt;msGold&gt;GoldTracking&lt;msSilver&gt;]: Math check negative (%d). Did you spend gold we missed?", hidden_profit))
+        else
+             cecho("\n&lt;msSilver&gt;[&lt;msGold&gt;GoldTracking&lt;msSilver&gt;]: No hidden rewards found (Math is balanced).")
+        end
+        
+        -- Update the baseline
+        goldtracking.baseline.hand = hand
+        goldtracking.baseline.bank = bank
+        goldtracking.expenses = 0 
+    end
+    
+    goldtracking.capture_mode = nil
+end
+
+goldtracking.start_snapshot = function()
+    goldtracking.snapshot_mode = true
+    goldtracking.snapshot.phase = "start"
+    send("show gold")
+end
+
+goldtracking.end_snapshot = function()
+    goldtracking.snapshot_mode = true
+    goldtracking.snapshot.phase = "end"
+    send("show gold")
+end
+
+goldtracking.check_snapshot_complete = function()
+    if goldtracking.snapshot.hand and goldtracking.snapshot.bank then
+        if goldtracking.snapshot.phase == "start" then
+            goldtracking.snapshot.start_hand = goldtracking.snapshot.hand
+            goldtracking.snapshot.start_bank = goldtracking.snapshot.bank
+            cecho("\n&lt;msSilver&gt;[&lt;msGold&gt;GoldTracking&lt;msSilver&gt;]: Snapshot taken. Turn in your quest, then type &lt;msGold&gt;gold check&lt;msSilver&gt;.")
+
+        elseif goldtracking.snapshot.phase == "end" then
+            local gain_hand = goldtracking.snapshot.hand - goldtracking.snapshot.start_hand
+            local gain_bank = goldtracking.snapshot.bank - goldtracking.snapshot.start_bank
+            local total_gain = gain_hand + gain_bank
+
+            if total_gain &gt; 0 then
+                cecho("\n&lt;msSilver&gt;[&lt;msGold&gt;GoldTracking&lt;msSilver&gt;]: Hidden reward found! You gained &lt;msGold&gt;" .. total_gain .. "&lt;msSilver&gt; gold.")
+                goldtracking.plus(total_gain)
+            else
+                cecho("\n&lt;msSilver&gt;[&lt;msGold&gt;GoldTracking&lt;msSilver&gt;]: No gold gain detected.")
+            end
+        end
+
+        goldtracking.snapshot.hand = nil
+        goldtracking.snapshot.bank = nil
+        goldtracking.snapshot_mode = false
+    end
+end
+
+-- =========================================================== --
+--                     EVENT HANDLERS                          --
+-- =========================================================== --
+
+-- Login Check
+function goldtracking_login_check()
+  if goldtracking.enabled and goldtracking.count(goldtracking.names) == 0 and gmcp.Char and gmcp.Char.Name then
+     goldtracking.add(gmcp.Char.Name.name)
+  end
+  if goldtracking.pickup then
+      cecho("\n&lt;msSilver&gt;[&lt;msGold&gt;GoldTracking&lt;msSilver&gt;]: Auto-pickup is &lt;msGold&gt;ENABLED&lt;msSilver&gt;.")
+  end
+end
+
+if registerAnonymousEventHandler then
+  registerAnonymousEventHandler("gmcp.Char.Name", "goldtracking_login_check")
+end
+
+-- Add print on load so you know it worked
+cecho("\n&lt;green&gt;Gold Tracking Script Loaded Successfully!&lt;reset&gt;")</script>
+			<eventHandlerList />
+		</Script>
+	</ScriptPackage>
+	<KeyPackage />
+	<HelpPackage>
+		<helpURL></helpURL>
+	</HelpPackage>
+</MudletPackage>
