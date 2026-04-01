@@ -114,7 +114,7 @@ end</script>
 			<colorTriggerFgColor>#000000</colorTriggerFgColor>
 			<colorTriggerBgColor>#000000</colorTriggerBgColor>
 			<regexCodeList>
-				<string>^You (?:pick|scoop) up (\d+) gold</string>
+				<string>^You (?:pick|scoop) up ([%d,]+) gold</string>
 			</regexCodeList>
 			<regexCodePropertyList>
 				<integer>1</integer>
@@ -221,7 +221,7 @@ end</script>
 			<colorTriggerFgColor>#000000</colorTriggerFgColor>
 			<colorTriggerBgColor>#000000</colorTriggerBgColor>
 			<regexCodeList>
-				<string>^(\w+) (?:picks|scoops) up (\d+) gold</string>
+				<string>^(\w+) (?:picks|scoops) up ([%d,]+) gold</string>
 			</regexCodeList>
 			<regexCodePropertyList>
 				<integer>1</integer>
@@ -314,6 +314,10 @@ elseif cmd == "stash" then
 elseif cmd == "add" then
     if args[2] then goldtracking.add(args[2]) end
 
+-- Add entire current party
+elseif cmd == "party" then
+    goldtracking.add_party()
+
 -- Remove a person from the split
 elseif cmd == "remove" then
     if args[2] then goldtracking.remove(args[2]) end
@@ -381,7 +385,7 @@ else
 end</script>
 			<command></command>
 			<packageName></packageName>
-			<regex>^(?:goldtracking|gold)(?: (.*))?$</regex>
+			<regex>^(?:goldtracking|gold)(?:\s+(.*))?$</regex>
 		</Alias>
 	</AliasPackage>
 	<ActionPackage />
@@ -456,8 +460,7 @@ goldtracking.unknown_ledger = goldtracking.unknown_ledger or {}
 goldtracking.snapshot = goldtracking.snapshot or {hand = 0, bank = 0, phase = nil}
 goldtracking.baseline = goldtracking.baseline or {hand = 0, bank = 0, set = false}
 goldtracking.expenses = goldtracking.expenses or 0
--- Safe check for name in case script loads before login
-local my_name = (gmcp and gmcp.Char and gmcp.Char.Name and gmcp.Char.Name.name) or "Solina"
+local my_name = (gmcp and gmcp.Char and gmcp.Char.Name and gmcp.Char.Name.name) or "Unknown"
 goldtracking.accountant = goldtracking.accountant or my_name
 goldtracking.autohandover = goldtracking.autohandover or false
 
@@ -601,16 +604,17 @@ end
 -- Math Logic (Add to Totals)
 goldtracking.plus = function (amt, noecho)
   local x = goldtracking
+  local original_amt = amt -- Store the gross amount before taxes!
 
   -- 1. Org Split
   if x.org.name then
-    x.org.gold = x.org.gold + amt * (x.org.percent/100)
-    amt = amt * ( 1 - x.org.percent/100)
+    x.org.gold = x.org.gold + original_amt * (x.org.percent/100)
+    amt = original_amt * ( 1 - x.org.percent/100) -- Shrink the pool for the party
   end
 
   -- 2. Party Split
   local num = goldtracking.count(x.names)
-  if num &gt; 0 then
+  if num > 0 then
       local split_share = amt / num
       for k, v in pairs (x.names) do
         x.names[k] = v + split_share
@@ -618,10 +622,10 @@ goldtracking.plus = function (amt, noecho)
   end
 
   -- 3. Total
-  x.total = x.total + amt
+  x.total = x.total + original_amt -- Use the gross amount here
 
   if not noecho then
-    x.echo ("&lt;msGold&gt;" .. amt .. " &lt;msSilver&gt;gold added")
+    x.echo ("<msGold>" .. original_amt .. " <msSilver>gold added")
   end
   x.showprompt ()
 end
@@ -699,6 +703,35 @@ goldtracking.remove = function (name)
   x.showprompt ()
 end
 
+-- Auto-Add Party Members
+goldtracking.add_party = function()
+    goldtracking.echo("Scanning party members...")
+    send("party", false)
+
+    -- Kill any existing temp trigger to avoid duplicates
+    if goldtracking.party_trigger then killTrigger(goldtracking.party_trigger) end
+
+    -- Temporary regex to catch standard Achaea party list names
+    -- Matches lines starting with 1+ spaces, a capitalized name, and ignores the rest
+    goldtracking.party_trigger = tempRegexTrigger("^\\s+([A-Z][a-z]+)", function()
+        local name = matches[2]
+        -- Filter out common false positives just in case
+        if name ~= "Party" and name ~= "The" then
+            goldtracking.add(name)
+        end
+    end)
+
+    -- Clean up the trigger after 1.5 seconds
+    tempTimer(1.5, function()
+        if goldtracking.party_trigger then
+            killTrigger(goldtracking.party_trigger)
+            goldtracking.party_trigger = nil
+            goldtracking.echo("Party scan complete.")
+            goldtracking.showprompt()
+        end
+    end)
+end
+
 -- Org Settings
 goldtracking.setorg = function (name, percent)
   name = name:lower ()
@@ -751,17 +784,29 @@ goldtracking.unpause = function (name)
   x.showprompt ()
 end
 
--- Reset All
--- Function 1: The Prompt (Run when you type 'gold reset')
--- FIX 2: Add a safety prompt to 'gold reset'
+-- Reset All (Double-Tap to Confirm)
 goldtracking.reset = function ()
-  cecho("\n&lt;msSilver&gt;[&lt;msGold&gt;GoldTracking&lt;msSilver&gt;]: &lt;red&gt;WARNING!&lt;msSilver&gt; This will wipe ALL data (Total: " .. goldtracking.total .. ").\n")
-  cecho("&lt;msSilver&gt;Are you sure? ")
-  
-  -- FIX: execute the Lua function directly instead of sending a command
-  cechoLink("&lt;red&gt;[CONFIRM RESET]", "goldtracking.confirm_reset()", "Click to wipe all data")
-  
-  cecho("\n")
+  -- If the flag is true, this is the second tap! Execute the reset.
+  if goldtracking.reset_pending then
+      goldtracking.confirm_reset()
+      
+      -- Clean up the timer and flag
+      if goldtracking.reset_timer then killTimer(goldtracking.reset_timer) end
+      goldtracking.reset_pending = false
+      
+  -- If the flag is nil or false, this is the first tap.
+  else
+      goldtracking.reset_pending = true
+      
+      cecho("\n<msSilver>[<msGold>GoldTracking<msSilver>]: <red>WARNING!<msSilver> This will wipe ALL data (Total: " .. goldtracking.total .. ").\n")
+      cecho("<msSilver>Type <msGold>gold reset<msSilver> again within 6 seconds to confirm.\n")
+      
+      -- Start a 6-second countdown to cancel the pending reset
+      goldtracking.reset_timer = tempTimer(6, function()
+          goldtracking.reset_pending = false
+          cecho("\n<msSilver>[<msGold>GoldTracking<msSilver>]: Reset cancelled.\n")
+      end)
+  end
 end
 
 -- Function 2: The Execution (Run when you click the link)
@@ -864,6 +909,7 @@ goldtracking.help = function ()
     cecho ("    &lt;msGold&gt;gold &lt;on|off&gt;          &lt;msSilver&gt;- Turn the entire tracker on or off.\n")
     cecho ("    &lt;msGold&gt;gold reset             &lt;msSilver&gt;- Reset all totals to 0.\n")
     cecho ("    &lt;msGold&gt;gold report            &lt;msSilver&gt;- Announce current totals to Party.\n")
+    cecho ("    &lt;msGold&gt;gold party             &lt;msSilver&gt;- Add all current party members to the split list.\n")
 
     cecho ("\n&lt;msGold&gt;  LOOT &amp; AUTOMATION\n")
     cecho ("    &lt;msGold&gt;gold autoloot &lt;on|off&gt; &lt;msSilver&gt;- Toggle auto-looting from the ground.\n")
@@ -1018,11 +1064,23 @@ end
 
 -- Login Check
 function goldtracking_login_check()
-  if goldtracking.enabled and goldtracking.count(goldtracking.names) == 0 and gmcp.Char and gmcp.Char.Name then
-     goldtracking.add(gmcp.Char.Name.name)
+  -- Safety check: ensure GMCP data is actually present
+  if not gmcp or not gmcp.Char or not gmcp.Char.Name then return end
+  
+  local my_name = gmcp.Char.Name.name:title()
+
+  -- Auto-add self to empty tracker
+  if goldtracking.enabled and goldtracking.count(goldtracking.names) == 0 then
+     goldtracking.add(my_name)
   end
+  
+  -- Dynamically assign the accountant if it's defaulting to "Unknown" or the old hardcode
+  if goldtracking.accountant == "Unknown" or goldtracking.accountant == "Solina" then
+      goldtracking.accountant = my_name
+  end
+
   if goldtracking.pickup then
-      cecho("\n&lt;msSilver&gt;[&lt;msGold&gt;GoldTracking&lt;msSilver&gt;]: Auto-pickup is &lt;msGold&gt;ENABLED&lt;msSilver&gt;.")
+      cecho("\n<msSilver>[<msGold>GoldTracking<msSilver>]: Auto-pickup is <msGold>ENABLED<msSilver>.")
   end
 end
 
