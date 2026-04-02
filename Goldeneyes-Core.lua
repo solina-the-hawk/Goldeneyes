@@ -417,3 +417,149 @@ goldtracking.login_handler = registerAnonymousEventHandler("gmcp.Char.Name", "go
 
 -- Inform user it successfully loaded
 cecho("\n<green>Goldeneyes Core Loaded Successfully!<reset>\n")
+
+-- =========================================================== --
+--               DYNAMIC TRIGGERS & ALIASES                    --
+-- =========================================================== --
+goldtracking.trigger_ids = goldtracking.trigger_ids or {}
+goldtracking.alias_ids = goldtracking.alias_ids or {}
+
+goldtracking.create_triggers = function()
+    -- 1. Clean up existing triggers/aliases to prevent duplicates on reload
+    for _, id in pairs(goldtracking.trigger_ids) do killTrigger(id) end
+    for _, id in pairs(goldtracking.alias_ids) do killAlias(id) end
+    goldtracking.trigger_ids = {}
+    goldtracking.alias_ids = {}
+
+    -- 2. Mystery Gold Pickups
+    table.insert(goldtracking.trigger_ids, tempRegexTrigger("^Some gold falls from the corpse and automatically flies into the hands of (\\w+)\\.", 
+    [[
+        local name_key = matches[2]:lower()
+        if goldtracking.names[name_key] then
+            goldtracking.unknown_ledger[name_key] = (goldtracking.unknown_ledger[name_key] or 0) + 1
+            cecho(string.format("\n<red>[ALERT]: %s picked up a MYSTERY pile of gold! (Auto-loot artifact detected)", matches[2]))
+            cecho("\n<red>       Please ask them how much they got and use 'gold plus <amount>'.")
+        end
+    ]]))
+
+    table.insert(goldtracking.trigger_ids, tempRegexTrigger("^.*sovereigns spills from the corpse, flying into the hands of.*before they ", 
+    [[
+        -- Catches the alternate artifact message, but doesn't capture the name easily.
+        cecho("\n<red>[ALERT]: Someone's artifact just auto-looted a MYSTERY pile of gold!<reset>")
+    ]]))
+
+    -- 3. Shop Purchases & Bribes (Expenses)
+    table.insert(goldtracking.trigger_ids, tempRegexTrigger("^You pay ([\\d,]+) gold sovereigns\\.$", [[ goldtracking.add_expense(tonumber((matches[2]:gsub(",", "")))) ]]))
+    table.insert(goldtracking.trigger_ids, tempRegexTrigger("^You buy .* for ([\\d,]+) gold\\.$", [[ goldtracking.add_expense(tonumber((matches[2]:gsub(",", "")))) ]]))
+    table.insert(goldtracking.trigger_ids, tempRegexTrigger("^You give ([\\d,]+) gold to .*$", [[ -- Expense ignored unless explicitly tracked ]]))
+
+    -- 4. Gold Picked Up (You)
+    table.insert(goldtracking.trigger_ids, tempRegexTrigger("^You (?:pick|scoop) up ([\\d,]+) gold", 
+    [[
+        local amount = tonumber((matches[2]:gsub(",", "")))
+        if amount then goldtracking.handle_loot(amount) end
+    ]]))
+
+    -- 5. Gold Dropped (Grab It)
+    local grab_script = [[ if goldtracking.enabled and goldtracking.pickup then send("queue add eqbal get gold", false) end ]]
+    table.insert(goldtracking.trigger_ids, tempRegexTrigger("^A.*sovereigns? spills? from the corpse", grab_script))
+    table.insert(goldtracking.trigger_ids, tempRegexTrigger("A pile of golden sovereigns twinkles and gleams\\.", grab_script))
+    table.insert(goldtracking.trigger_ids, tempRegexTrigger("There is.*pile of golden sovereigns here\\.", grab_script))
+    table.insert(goldtracking.trigger_ids, tempRegexTrigger("pile of .*sovereigns?", grab_script))
+
+    -- 6. Gold Received (Handover)
+    table.insert(goldtracking.trigger_ids, tempRegexTrigger("^(\\w+) gives you ([\\d,]+) gold", 
+    [[
+        local name = matches[2]
+        local amount = tonumber((matches[3]:gsub(",", "")))
+        local name_key = name:lower()
+
+        if goldtracking.names[name_key] then
+            goldtracking.plus(amount)
+            if goldtracking.ledger[name_key] then
+                goldtracking.ledger[name_key] = goldtracking.ledger[name_key] - amount
+                cecho(string.format("\n<msSilver>[<msGold>GoldTracking<msSilver>]: %s paid off %d (Remaining: %d).", name, amount, goldtracking.ledger[name_key]))
+                if goldtracking.ledger[name_key] <= 0 then
+                    goldtracking.ledger[name_key] = nil
+                    cecho(string.format("\n<msSilver>[<msGold>GoldTracking<msSilver>]: %s has settled their debt.", name))
+                end
+            else
+                cecho(string.format("\n<msSilver>[<msGold>GoldTracking<msSilver>]: Accepted %d gold from %s (No prior debt).", amount, name))
+            end
+        end
+    ]]))
+
+    -- 7. Gold Tracking - Watchdog (Others)
+    table.insert(goldtracking.trigger_ids, tempRegexTrigger("^(\\w+) (?:picks|scoops) up ([\\d,]+) gold", 
+    [[
+        local name = matches[2]
+        local amount = tonumber((matches[3]:gsub(",", "")))
+        local name_key = name:lower()
+
+        if goldtracking.names[name_key] then
+            goldtracking.ledger[name_key] = (goldtracking.ledger[name_key] or 0) + amount
+            cecho(string.format("\n<msSilver>[<msGold>GoldTracking<msSilver>]: <orange>ALERT<msSilver>: <msGold>%s<msSilver> picked up <orange>%d<msSilver> gold!", name, amount))
+        end
+    ]]))
+
+    -- 8. Capture Gold (All Sources)
+    table.insert(goldtracking.trigger_ids, tempRegexTrigger("^You have .* gold sovereigns? in your .*", 
+    [[
+        if goldtracking.capture_mode then
+            local line = matches[1]
+            local total_hand = 0
+            local total_bank = 0
+
+            for amount_str, location in string.gmatch(line, "([%d,]+) gold sovereigns? in your (%w+)") do
+                local clean_str = (string.gsub(amount_str, ",", ""))
+                local amount = tonumber(clean_str)
+
+                if location == "inventory" or location == "containers" then
+                    total_hand = total_hand + amount
+                elseif location == "bank" then
+                    total_bank = total_bank + amount
+                end
+            end
+            goldtracking.process_gold_capture(total_hand, total_bank)
+        end
+    ]]))
+
+    -- 9. The Main Controller Alias
+    table.insert(goldtracking.alias_ids, tempAlias("^(?:goldtracking|gold)(?:\\s+(.*))?$", 
+    [[
+        local args_str = matches[2] or ""
+        local args = args_str:split(" ")
+        local cmd = args[1] and args[1]:lower() or ""
+
+        if cmd == "" then goldtracking.display()
+        elseif cmd == "help" then goldtracking.help()
+        elseif cmd == "on" or cmd == "off" then goldtracking.toggle(cmd)
+        elseif cmd == "autoloot" then goldtracking.togglepickup(args[2] or "")
+        elseif cmd == "container" then 
+            if args[2] then goldtracking.setcontainer(args[2]) else cecho("\n<msSilver>Usage: <msGold>gold container <name>") end
+        elseif cmd == "stash" then goldtracking.stash()
+        elseif cmd == "add" then if args[2] then goldtracking.add(args[2]) end
+        elseif cmd == "party" then goldtracking.add_party()
+        elseif cmd == "remove" then if args[2] then goldtracking.remove(args[2]) end
+        elseif cmd == "plus" then local amt = tonumber(args[2]); if amt then goldtracking.plus(amt) end
+        elseif cmd == "minus" then local amt = tonumber(args[2]); if amt then goldtracking.minus(amt) end
+        elseif cmd == "pause" then if args[2] then goldtracking.pause(args[2]) end
+        elseif cmd == "unpause" then if args[2] then goldtracking.unpause(args[2]) end
+        elseif cmd == "reset" then goldtracking.reset()
+        elseif cmd == "distribute" then goldtracking.distribute()
+        elseif cmd == "snapshot" then goldtracking.start_snapshot()
+        elseif cmd == "check" then goldtracking.check_reward()
+        elseif cmd == "report" then goldtracking.announce("party")
+        elseif cmd == "accountant" then 
+            if args[2] then goldtracking.set_accountant(args[2]) else cecho("\n<msSilver>Current Accountant: <msGold>" .. goldtracking.accountant) end
+        elseif cmd == "loot" then 
+            local amt = tonumber(args[2]); if amt then goldtracking.handle_loot(amt) else cecho("\n<msSilver>Usage: <msGold>gold loot <amount>") end
+        elseif cmd == "autohandover" then goldtracking.toggle_handover(args[2] or "")
+        else cecho("\n<msSilver>Unknown command. Try <msGold>gold help<msSilver>.") end
+    ]]))
+
+    goldtracking.echo("Dynamic triggers and aliases loaded.")
+end
+
+-- Initialize triggers on load
+goldtracking.create_triggers()
