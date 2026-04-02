@@ -11,7 +11,8 @@
 		<Script isActive="yes" isFolder="no">
 			<name>Goldeneyes Core Loader</name>
 			<packageName></packageName>
-			<script>local _sep
+			<script>-- Goldeneyes Core Loader, see: 'goldeneyes help' for command information.
+local _sep
 if string.char(getMudletHomeDir():byte()) == "/" then 
     _sep = "/" 
 else
