@@ -39,6 +39,7 @@ goldeneyes.expenses = goldeneyes.expenses or 0
 goldeneyes.autohandover = goldeneyes.autohandover or false
 goldeneyes.reset_pending = false
 goldeneyes.split_strategy = goldeneyes.split_strategy or "even"
+goldeneyes.party_alerts = goldeneyes.party_alerts or true
 
 local my_name = (gmcp and gmcp.Char and gmcp.Char.Name and gmcp.Char.Name.name) or "Unknown"
 goldeneyes.accountant = goldeneyes.accountant or my_name
@@ -64,6 +65,20 @@ goldeneyes.getsettings = function ()
       goldeneyes.showprompt = goldeneyes.settings.promptfunction or function() end
   end
 end
+
+goldeneyes.format = function(amount)
+    if not amount then return "0" end
+    -- Force it into a whole number string
+    local formatted = tostring(math.floor(tonumber(amount) or 0))
+    local k
+    while true do
+        -- Insert a comma every 3 digits from the right
+        formatted, k = string.gsub(formatted, "^(-?%d+)(%d%d%d)", '%1,%2')
+        if (k == 0) then break end
+    end
+    return formatted
+end
+
 goldeneyes.getsettings()
 
 -- =========================================================== --
@@ -81,14 +96,14 @@ goldeneyes.display = function ()
   local gph = math.floor((goldeneyes.total / elapsed) * 3600)
 
   cecho ("\n<msGold>Goldeneyes Gold Tracking Ledger\n")
-  cecho ("<msSilver>Created by Solina | Enter <msGold>goldeneyes help <msSilver>for commands and settings.\n\n")
+  cecho ("<msSilver>  Enter <msGold>goldeneyes help <green>for commands and settings.\n")
+  cecho ("\n")
+  cecho ("  <msGold>Gold Tracking: " .. status .. "\n")
+  cecho ("  <msSilver>Accountant: " .. role .. "\n")
+  cecho ("  <msSilver>Strategy: " .. strat_text .. "\n\n")
   
-  cecho ("<msGold>Gold Tracking " .. status .. "\n")
-  cecho ("<msSilver>Accountant: " .. role .. "\n")
-  cecho ("<msSilver>Strategy: " .. strat_text .. "\n\n")
-  
-  cecho ("<msSilver>Gold Collected: <msGold>" .. goldeneyes.total .. "\n")
-  cecho ("<msSilver>Gold per hour:  <msGold>" .. gph .. "\n")
+  cecho ("  <msSilver>Gold Collected: <msGold>" .. goldeneyes.total .. "\n")
+  cecho ("  <msSilver>Gold per hour:  <msGold>" .. gph .. "\n")
 
   if goldeneyes.org.name then
     cecho ("\n  <msSilver>" .. string.format ("%14s", goldeneyes.org.name:title ()) ..
@@ -97,7 +112,7 @@ goldeneyes.display = function ()
   end
 
   if goldeneyes.count(goldeneyes.names) > 0 then 
-      cecho ("\n<orange>Currently Tracking:\n") 
+      cecho ("\n  <orange>Currently Tracking:\n") 
   end
   
   -- Use our new dynamic shares calculator for the display
@@ -261,7 +276,7 @@ end
 
 goldeneyes.add_party = function()
     goldeneyes.echo("Scanning party members...")
-    send("party", false)
+    send("party members", false)
 
     if goldeneyes.party_trigger then killTrigger(goldeneyes.party_trigger) end
     goldeneyes.party_trigger = tempRegexTrigger("^\\s+([A-Z][a-z]+)", function()
@@ -425,6 +440,7 @@ goldeneyes.help = function ()
     cecho ("    <msGold>goldeneyes loot <amount>     <msSilver>- Manually simulate picking up loot.\n")
     cecho ("    <msGold>goldeneyes plus <amount>     <msSilver>- Manually add to Total.\n")
     cecho ("    <msGold>goldeneyes minus <amount>    <msSilver>- Manually subtract from Total.\n\n")
+    cecho ("    <msGold>goldeneyes alerts <on|off>   <msSilver>- Toggle clickable party join/leave prompts.\n")
     goldeneyes.showprompt ()
 end
 
@@ -453,6 +469,12 @@ goldeneyes.add_expense = function(amt)
         goldeneyes.expenses = goldeneyes.expenses + amt
         goldeneyes.echo("Tracked expense of <orange>" .. amt .. "<msSilver> gold.")
     end
+end
+
+goldeneyes.togglealerts = function(val)
+    local state = val:lower() == "on"
+    goldeneyes.party_alerts = state
+    goldeneyes.echo("Party alerts are now " .. (state and "<green>ENABLED<msSilver>" or "<red>DISABLED<msSilver>"))
 end
 
 goldeneyes.start_snapshot = function()
@@ -658,6 +680,54 @@ goldeneyes.create_triggers = function()
         end
     ]]))
     
+    -- 8.5 Interactive Party Prompts
+    -- When YOU join a party
+    table.insert(goldeneyes.trigger_ids, tempRegexTrigger("^You have joined .+'s party\\.$", 
+    [[
+        if goldeneyes.party_alerts then
+            cecho("\n<msSilver>[<msGold>Goldeneyes<msSilver>]: You joined a party. ")
+            cechoLink("<green>[Add Party Members]", [[goldeneyes.add_party()]], "Auto-add current party to ledger", true)
+            cecho(" <msSilver>| ")
+            -- Appends to command line so you can easily type the name before hitting enter
+            cechoLink("<yellow>[Set Accountant]", [[clearCmdLine() appendCmdLine("goldeneyes accountant ")]], "Designate the collector", true)
+            cecho("\n")
+        end
+    ]]))
+
+    -- When YOU leave a party
+    table.insert(goldeneyes.trigger_ids, tempRegexTrigger("^You have left your party\\.$", 
+    [[
+        if goldeneyes.party_alerts then
+            cecho("\n<msSilver>[<msGold>Goldeneyes<msSilver>]: You left the party. ")
+            cechoLink("<red>[Reset Tracker]", [[goldeneyes.reset()]], "Wipe all current ledger data", true)
+            cecho("\n")
+        end
+    ]]))
+
+    -- When SOMEONE ELSE joins your party
+    table.insert(goldeneyes.trigger_ids, tempRegexTrigger("^\\(Party\\): (\\w+) has joined your party\\.$", 
+    [[
+        if goldeneyes.party_alerts then
+            local name = matches[2]
+            cecho("\n<msSilver>[<msGold>Goldeneyes<msSilver>]: <msGold>" .. name .. " <msSilver>joined the party. ")
+            cechoLink("<green>[Add to Tracker]", [[goldeneyes.add("]] .. name .. [[")]], "Add " .. name .. " to the gold split", true)
+            cecho("\n")
+        end
+    ]]))
+
+    -- When SOMEONE ELSE leaves your party
+    -- (Assuming standard Achaea syntax based on the join message)
+    table.insert(goldeneyes.trigger_ids, tempRegexTrigger("^\\(Party\\): (\\w+) has left your party\\.$", 
+    [[
+        local name = matches[2]
+        -- We only prompt if they are actually in our ledger!
+        if goldeneyes.party_alerts and goldeneyes.names[name:lower()] then
+            cecho("\n<msSilver>[<msGold>Goldeneyes<msSilver>]: <msGold>" .. name .. " <msSilver>left the party. ")
+            cechoLink("<orange>[Remove from Tracker]", [[goldeneyes.remove("]] .. name .. [[")]], "Remove " .. name .. " from the gold split", true)
+            cecho("\n")
+        end
+    ]]))
+    
     -- 9. The Main Controller Alias
     table.insert(goldeneyes.alias_ids, tempAlias("^(?:goldeneyes|gold)(?:\\s+(.*))?$", 
     [[
@@ -690,6 +760,7 @@ goldeneyes.create_triggers = function()
             local amt = tonumber(args[2]); if amt then goldeneyes.handle_loot(amt) else cecho("\n<msSilver>Usage: <msGold>goldeneyes loot <amount>") end
         elseif cmd == "autohandover" then goldeneyes.toggle_handover(args[2] or "")
         elseif cmd == "strategy" then goldeneyes.set_strategy(args[2])
+        elseif cmd == "alerts" then goldeneyes.togglealerts(args[2] or "")
         else cecho("\n<msSilver>Unknown command. Try <msGold>goldeneyes help<msSilver>.") end
     ]]))
 
