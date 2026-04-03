@@ -40,6 +40,7 @@ goldeneyes.autohandover = goldeneyes.autohandover or false
 goldeneyes.reset_pending = false
 goldeneyes.split_strategy = goldeneyes.split_strategy or "even"
 goldeneyes.party_alerts = goldeneyes.party_alerts or true
+goldeneyes.pending_gold = goldeneyes.pending_gold or {}
 
 local my_name = (gmcp and gmcp.Char and gmcp.Char.Name and gmcp.Char.Name.name) or "Unknown"
 goldeneyes.accountant = goldeneyes.accountant or my_name
@@ -304,7 +305,12 @@ goldeneyes.handle_loot = function (amt)
   local cont = goldeneyes.container or "pack"
 
   if acc == my_name then
+      -- Add the gold silently
       goldeneyes.plus(amt, true)
+      
+      -- Announce the new total
+      goldeneyes.echo("Gold added to ledger. New total is <msGold>" .. goldeneyes.format(goldeneyes.total) .. "<msSilver> gold.")
+      
       -- Quietly stash it if we are the accountant
       if cont:lower() ~= "none" and cont:lower() ~= "inventory" then
           send("put " .. amt .. " gold in " .. cont, false)
@@ -413,6 +419,7 @@ goldeneyes.confirm_reset = function()
   goldeneyes.total = 0
   goldeneyes.expenses = 0
   goldeneyes.starttime = os.time()
+  goldeneyes.pending_gold = {}
 
   if gmcp.Char and gmcp.Char.Name then goldeneyes.add(gmcp.Char.Name.name) end
   goldeneyes.set_baseline()
@@ -518,6 +525,29 @@ goldeneyes.togglepickup = function(val)
     local state = val:lower() == "on"
     goldeneyes.pickup = state
     goldeneyes.echo("Auto-pickup is now " .. (state and "<green>ENABLED<msSilver>" or "<red>DISABLED<msSilver>"))
+end
+
+goldeneyes.accept_pending = function(name)
+    local name_key = name:lower()
+    local amount = goldeneyes.pending_gold[name_key]
+    
+    if amount then
+        goldeneyes.add(name)
+        -- Add the held gold to the pot
+        goldeneyes.plus(amount)
+        -- Clear it from the holding area
+        goldeneyes.pending_gold[name_key] = nil
+    else
+        goldeneyes.echo("No pending gold found for " .. name:title() .. ".")
+    end
+end
+
+goldeneyes.ignore_pending = function(name)
+    local name_key = name:lower()
+    if goldeneyes.pending_gold[name_key] then
+        goldeneyes.pending_gold[name_key] = nil
+        goldeneyes.echo("Ignored gold from " .. name:title() .. ".")
+    end
 end
 
 goldeneyes.setcontainer = function(name)
@@ -731,6 +761,7 @@ goldeneyes.create_triggers = function()
         local name_key = name:lower()
 
         if goldeneyes.names[name_key] then
+            -- They are tracked, handle normally
             goldeneyes.plus(amount)
             if goldeneyes.ledger[name_key] then
                 goldeneyes.ledger[name_key] = goldeneyes.ledger[name_key] - amount
@@ -742,6 +773,17 @@ goldeneyes.create_triggers = function()
             else
                 cecho(string.format("\n<msSilver>[<msGold>Goldeneyes<msSilver>]: Accepted %s gold from %s (No prior debt).", goldeneyes.format(amount), name))
             end
+        else
+            -- They are NOT tracked. Hold the gold and ask!
+            goldeneyes.pending_gold = goldeneyes.pending_gold or {}
+            goldeneyes.pending_gold[name_key] = (goldeneyes.pending_gold[name_key] or 0) + amount
+            
+            cecho(string.format("\n<msSilver>[<msGold>Goldeneyes<msSilver>]: <yellow>Received %s gold from an UNTRACKED person: %s.<reset>\n", goldeneyes.format(amount), name))
+            cecho("       ")
+            cechoLink("<green>[Add to Tracker & Pot]", 'goldeneyes.accept_pending("' .. name .. '")', "Track " .. name .. " and add " .. goldeneyes.pending_gold[name_key] .. " to pot", true)
+            cecho(" <msSilver>| ")
+            cechoLink("<red>[Ignore]", 'goldeneyes.ignore_pending("' .. name .. '")', "Ignore this gold", true)
+            cecho("\n")
         end
     ]]))
 
