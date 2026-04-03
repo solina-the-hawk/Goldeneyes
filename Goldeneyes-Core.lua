@@ -44,6 +44,9 @@ goldeneyes.party_alerts = goldeneyes.party_alerts or true
 local my_name = (gmcp and gmcp.Char and gmcp.Char.Name and gmcp.Char.Name.name) or "Unknown"
 goldeneyes.accountant = goldeneyes.accountant or my_name
 
+-- Load saved data if it exists
+goldeneyes.load()
+
 -- =========================================================== --
 --                     HELPER FUNCTIONS                        --
 -- =========================================================== --
@@ -77,6 +80,58 @@ goldeneyes.format = function(amount)
         if (k == 0) then break end
     end
     return formatted
+end
+
+goldeneyes.get_save_path = function()
+    -- Mudlet natively handles "/" for paths on both Windows and Mac/Linux
+    return getMudletHomeDir() .. "/Goldeneyes-Data.lua"
+end
+
+goldeneyes.save = function()
+    local save_path = goldeneyes.get_save_path()
+    local data = {
+        enabled = goldeneyes.enabled,
+        pickup = goldeneyes.pickup,
+        names = goldeneyes.names,
+        paused = goldeneyes.paused,
+        total = goldeneyes.total,
+        org = goldeneyes.org,
+        ledger = goldeneyes.ledger,
+        unknown_ledger = goldeneyes.unknown_ledger,
+        baseline = goldeneyes.baseline,
+        expenses = goldeneyes.expenses,
+        autohandover = goldeneyes.autohandover,
+        split_strategy = goldeneyes.split_strategy,
+        party_alerts = goldeneyes.party_alerts,
+        accountant = goldeneyes.accountant,
+        starttime = goldeneyes.starttime
+    }
+    table.save(save_path, data)
+end
+
+goldeneyes.load = function()
+    local save_path = goldeneyes.get_save_path()
+    if io.exists(save_path) then
+        local data = {}
+        table.load(save_path, data)
+        
+        -- Restore all variables, falling back to current values if missing
+        goldeneyes.enabled = data.enabled
+        if goldeneyes.pickup == nil then goldeneyes.pickup = data.pickup end
+        goldeneyes.names = data.names or goldeneyes.names
+        goldeneyes.paused = data.paused or goldeneyes.paused
+        goldeneyes.total = data.total or goldeneyes.total
+        goldeneyes.org = data.org or goldeneyes.org
+        goldeneyes.ledger = data.ledger or goldeneyes.ledger
+        goldeneyes.unknown_ledger = data.unknown_ledger or goldeneyes.unknown_ledger
+        goldeneyes.baseline = data.baseline or goldeneyes.baseline
+        goldeneyes.expenses = data.expenses or goldeneyes.expenses
+        if data.autohandover ~= nil then goldeneyes.autohandover = data.autohandover end
+        goldeneyes.split_strategy = data.split_strategy or goldeneyes.split_strategy
+        if data.party_alerts ~= nil then goldeneyes.party_alerts = data.party_alerts end
+        goldeneyes.accountant = data.accountant or goldeneyes.accountant
+        goldeneyes.starttime = data.starttime or goldeneyes.starttime
+    end
 end
 
 goldeneyes.getsettings()
@@ -329,6 +384,7 @@ end
 goldeneyes.reset = function ()
   if goldeneyes.reset_pending then
       goldeneyes.confirm_reset()
+      goldeneyes.save()
       if goldeneyes.reset_timer then killTimer(goldeneyes.reset_timer) end
       goldeneyes.reset_pending = false
   else
@@ -551,8 +607,8 @@ goldeneyes.check_reward = function()
 end
 
 goldeneyes.process_gold_capture = function(hand, bank)
-    if type(hand) == "string" then hand = tonumber(string.gsub(hand, ",", "")) end
-    if type(bank) == "string" then bank = tonumber(string.gsub(bank, ",", "")) end
+    if type(hand) == "string" then hand = tonumber((string.gsub(hand, ",", ""))) end
+    if type(bank) == "string" then bank = tonumber((string.gsub(bank, ",", ""))) end
     hand = hand or 0
     bank = bank or 0
     
@@ -603,6 +659,13 @@ end
 
 if goldeneyes.login_handler then killAnonymousEventHandler(goldeneyes.login_handler) end
 goldeneyes.login_handler = registerAnonymousEventHandler("gmcp.Char.Name", "goldeneyes_login_check")
+
+-- Save data when Mudlet closes or disconnects from Achaea
+if goldeneyes.save_exit_handler then killAnonymousEventHandler(goldeneyes.save_exit_handler) end
+goldeneyes.save_exit_handler = registerAnonymousEventHandler("sysExitEvent", "goldeneyes.save")
+
+if goldeneyes.save_dc_handler then killAnonymousEventHandler(goldeneyes.save_dc_handler) end
+goldeneyes.save_dc_handler = registerAnonymousEventHandler("sysDisconnectionEvent", "goldeneyes.save")
 
 -- =========================================================== --
 --               DYNAMIC TRIGGERS & ALIASES                    --
