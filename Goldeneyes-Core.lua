@@ -776,10 +776,10 @@ goldeneyes.create_triggers = function()
     [[
         if goldeneyes.party_alerts then
             cecho("\n<msSilver>[<msGold>Goldeneyes<msSilver>]: You joined a party. ")
-            cechoLink("<green>[Add Party Members]", [[goldeneyes.add_party()]], "Auto-add current party to ledger", true)
+            cechoLink("<green>[Add Party Members]", "goldeneyes.add_party()", "Auto-add current party to ledger", true)
             cecho(" <msSilver>| ")
             -- Appends to command line so you can easily type the name before hitting enter
-            cechoLink("<yellow>[Set Accountant]", [[clearCmdLine() appendCmdLine("goldeneyes accountant ")]], "Designate the collector", true)
+            cechoLink("<yellow>[Set Accountant]", 'clearCmdLine() appendCmdLine("goldeneyes accountant ")', "Designate the collector", true)
             cecho("\n")
         end
     ]]))
@@ -789,7 +789,7 @@ goldeneyes.create_triggers = function()
     [[
         if goldeneyes.party_alerts then
             cecho("\n<msSilver>[<msGold>Goldeneyes<msSilver>]: You left the party. ")
-            cechoLink("<red>[Reset Tracker]", [[goldeneyes.reset()]], "Wipe all current ledger data", true)
+            cechoLink("<red>[Reset Tracker]", "goldeneyes.reset()", "Wipe all current ledger data", true)
             cecho("\n")
         end
     ]]))
@@ -800,7 +800,7 @@ goldeneyes.create_triggers = function()
         if goldeneyes.party_alerts then
             local name = matches[2]
             cecho("\n<msSilver>[<msGold>Goldeneyes<msSilver>]: <msGold>" .. name .. " <msSilver>joined the party. ")
-            cechoLink("<green>[Add to Tracker]", [[goldeneyes.add("]] .. name .. [[")]], "Add " .. name .. " to the gold split", true)
+            cechoLink("<green>[Add to Tracker]", 'goldeneyes.add("' .. name .. '")', "Add " .. name .. " to the gold split", true)
             cecho("\n")
         end
     ]]))
@@ -813,7 +813,7 @@ goldeneyes.create_triggers = function()
         -- We only prompt if they are actually in our ledger!
         if goldeneyes.party_alerts and goldeneyes.names[name:lower()] then
             cecho("\n<msSilver>[<msGold>Goldeneyes<msSilver>]: <msGold>" .. name .. " <msSilver>left the party. ")
-            cechoLink("<orange>[Remove from Tracker]", [[goldeneyes.remove("]] .. name .. [[")]], "Remove " .. name .. " from the gold split", true)
+            cechoLink("<orange>[Remove from Tracker]", 'goldeneyes.remove("' .. name .. '")', "Remove " .. name .. " from the gold split", true)
             cecho("\n")
         end
     ]]))
