@@ -44,9 +44,6 @@ goldeneyes.party_alerts = goldeneyes.party_alerts or true
 local my_name = (gmcp and gmcp.Char and gmcp.Char.Name and gmcp.Char.Name.name) or "Unknown"
 goldeneyes.accountant = goldeneyes.accountant or my_name
 
--- Load saved data if it exists
-goldeneyes.load()
-
 -- =========================================================== --
 --                     HELPER FUNCTIONS                        --
 -- =========================================================== --
@@ -860,6 +857,9 @@ end
 
 -- Initialize triggers on load
 goldeneyes.create_triggers()
+
+-- Load saved data
+goldeneyes.load()
 
 -- Inform user it successfully loaded
 cecho("\n<green>Goldeneyes Core Loaded Successfully!<reset>\n")
