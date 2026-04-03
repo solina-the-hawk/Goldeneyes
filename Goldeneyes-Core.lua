@@ -301,9 +301,14 @@ goldeneyes.handle_loot = function (amt)
   if not goldeneyes.enabled then return end
   local my_name = (gmcp and gmcp.Char and gmcp.Char.Name and gmcp.Char.Name.name) or "Unknown"
   local acc = goldeneyes.accountant or my_name
+  local cont = goldeneyes.container or "pack"
 
   if acc == my_name then
       goldeneyes.plus(amt, true)
+      -- Quietly stash it if we are the accountant
+      if cont:lower() ~= "none" and cont:lower() ~= "inventory" then
+          send("put " .. amt .. " gold in " .. cont, false)
+      end
   else
       if goldeneyes.autohandover then
           send("give " .. amt .. " gold to " .. acc)
@@ -311,6 +316,10 @@ goldeneyes.handle_loot = function (amt)
       else
           send("pt I picked up " .. goldeneyes.format(amt) .. " gold.")
           goldeneyes.echo("Looted <msGold>"..goldeneyes.format(amt).."<msSilver>. Reported to party.")
+          -- Quietly stash it since we are holding onto it for now
+          if cont:lower() ~= "none" and cont:lower() ~= "inventory" then
+              send("put " .. amt .. " gold in " .. cont, false)
+          end
       end
   end
 end
@@ -413,7 +422,11 @@ end
 
 goldeneyes.distribute = function (channel)
   local cont = goldeneyes.container or "pack"
-  send ("get gold from " .. cont)
+  
+  -- Only attempt to pull gold out if a valid container is set
+  if cont:lower() ~= "none" and cont:lower() ~= "inventory" then
+      send ("get gold from " .. cont)
+  end
   
   local shares = goldeneyes.get_shares()
   local members = goldeneyes.count(goldeneyes.names)
@@ -429,25 +442,25 @@ goldeneyes.distribute = function (channel)
       
       if channel == "intrepid" then
           cmd = "it"
-          message = string.format("[Goldeneyes]: Distributing %s gold across %d members. Expected even share: %s gold.", goldeneyes.format(goldeneyes.total), members, goldeneyes.format(single_share))
+          message = string.format("Distributing %s gold across %d members. Expected even share: %s gold.", goldeneyes.format(goldeneyes.total), members, goldeneyes.format(single_share))
       elseif channel == "say" then
           cmd = "say"
           message = string.format("I'll distribute our collected %s gold sovereigns now. Split evenly among the %d of us, we should each receive %s gold.", goldeneyes.format(goldeneyes.total), members, goldeneyes.format(single_share))
       else
           cmd = "pt"
-          message = string.format("[Goldeneyes]: Distributing %s gold across %d members. Expected even share: %s gold.", goldeneyes.format(goldeneyes.total), members, goldeneyes.format(single_share))
+          message = string.format("Distributing %s gold across %d members. Expected even share: %s gold.", goldeneyes.format(goldeneyes.total), members, goldeneyes.format(single_share))
       end
   else
       -- "Fair" Strategy Announcement (No expected share is promised since it varies)
       if channel == "intrepid" then
           cmd = "it"
-          message = string.format("[Goldeneyes]: Distributing %s gold across %d members. Shares are prorated based on hunt participation.", goldeneyes.format(goldeneyes.total), members)
+          message = string.format("Distributing %s gold across %d members. Shares are prorated based on hunt participation.", goldeneyes.format(goldeneyes.total), members)
       elseif channel == "say" then
           cmd = "say"
-          message = string.format("I am now distributing our collected %s gold sovereigns across the %d of us, distributed fairly based on when you joined the hunt.", goldeneyes.format(goldeneyes.total), members)
+          message = string.format("I'll distribute our collected %s gold sovereigns now across the %d of us, distributed fairly based on when you joined.", goldeneyes.format(goldeneyes.total), members)
       else
           cmd = "pt"
-          message = string.format("[Goldeneyes]: Distributing %s gold across %d members. Shares are prorated based on hunt participation.", goldeneyes.format(goldeneyes.total), members)
+          message = string.format("Distributing %s gold across %d members. Shares are prorated based on hunt participation.", goldeneyes.format(goldeneyes.total), members)
       end
   end
   
