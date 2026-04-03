@@ -437,6 +437,7 @@ goldeneyes.help = function ()
     cecho ("    <msGold>goldeneyes stash             <msSilver>- Move all carried gold to container.\n")
     cecho ("    <msGold>goldeneyes distribute [channel]<msSilver>- Empty container and share gold.\n")
     cecho ("\n<msGold>ADVANCED\n")
+    cecho ("    <msGold>goldeneyes calc <amt> <#>  <msSilver>- Quick math to split an amount of gold.\n")
     cecho ("    <msGold>goldeneyes snapshot / check  <msSilver>- Capture 'Show Gold' to find hidden rewards.\n")
     cecho ("    <msGold>goldeneyes loot <amount>     <msSilver>- Manually simulate picking up loot.\n")
     cecho ("    <msGold>goldeneyes plus <amount>     <msSilver>- Manually add to Total.\n")
@@ -475,6 +476,32 @@ goldeneyes.togglealerts = function(val)
     local state = val:lower() == "on"
     goldeneyes.party_alerts = state
     goldeneyes.echo("Party alerts are now " .. (state and "<green>ENABLED<msSilver>" or "<red>DISABLED<msSilver>"))
+end
+
+goldeneyes.calc = function(amount, people)
+    -- Strip commas just in case you typed 'goldeneyes calc 32,512 4'
+    if type(amount) == "string" then amount = amount:gsub(",", "") end
+    
+    amount = tonumber(amount)
+    people = tonumber(people)
+
+    if not amount or not people or people <= 0 then
+        cecho("\n<msSilver>Usage: <msGold>goldeneyes calc <amount> <number of people>\n")
+        return
+    end
+
+    local share = math.floor(amount / people)
+    local remainder = amount % people
+
+    local msg = string.format("Splitting <msGold>%s<msSilver> gold among <msGold>%d<msSilver> people results in <msGold>%s<msSilver> gold each.", 
+        goldeneyes.format(amount), people, goldeneyes.format(share))
+
+    -- Let us know if there's leftover gold that couldn't be divided evenly
+    if remainder > 0 then
+        msg = msg .. string.format(" <msSilver>(Remainder: <orange>%s<msSilver>)", goldeneyes.format(remainder))
+    end
+
+    goldeneyes.echo(msg)
 end
 
 goldeneyes.start_snapshot = function()
@@ -761,6 +788,7 @@ goldeneyes.create_triggers = function()
         elseif cmd == "autohandover" then goldeneyes.toggle_handover(args[2] or "")
         elseif cmd == "strategy" then goldeneyes.set_strategy(args[2])
         elseif cmd == "alerts" then goldeneyes.togglealerts(args[2] or "")
+        elseif cmd == "calc" then goldeneyes.calc(args[2], args[3])
         else cecho("\n<msSilver>Unknown command. Try <msGold>goldeneyes help<msSilver>.") end
     ]]))
 
