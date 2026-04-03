@@ -102,12 +102,12 @@ goldeneyes.display = function ()
   cecho ("  <msSilver>Accountant: " .. role .. "\n")
   cecho ("  <msSilver>Strategy: " .. strat_text .. "\n\n")
   
-  cecho ("  <msSilver>Gold Collected: <msGold>" .. goldeneyes.total .. "\n")
-  cecho ("  <msSilver>Gold per hour:  <msGold>" .. gph .. "\n")
+  cecho ("  <msSilver>Gold Collected: <msGold>" .. goldeneyes.format(goldeneyes.total) .. "\n")
+  cecho ("  <msSilver>Gold per hour:  <msGold>" .. goldeneyes.format(gph) .. "\n")
 
   if goldeneyes.org.name then
     cecho ("\n  <msSilver>" .. string.format ("%14s", goldeneyes.org.name:title ()) ..
-           ": <msGold>" .. string.format ("%-8s", math.floor(goldeneyes.org.gold)) ..
+           ": <msGold>" .. string.format ("%-8s", goldeneyes.format(goldeneyes.org.gold)) ..
            " <msSilver>(" .. goldeneyes.org.percent ..  "%)\n")
   end
 
@@ -118,7 +118,7 @@ goldeneyes.display = function ()
   -- Use our new dynamic shares calculator for the display
   local shares = goldeneyes.get_shares()
   for k, v in pairs (shares) do
-    cecho ("  <msSilver>" .. string.format ("%14s", k:title ()) .. ": <msGold>" .. math.floor(v) .. "\n")
+    cecho ("  <msSilver>" .. string.format ("%14s", k:title ()) .. ": <msGold>" .. goldeneyes.format(v) .. "\n")
   end
 
   local ledger_count = goldeneyes.count(goldeneyes.ledger)
@@ -135,7 +135,7 @@ goldeneyes.display = function ()
           local unknown = goldeneyes.unknown_ledger[k] or 0
           local str = string.format("  <msSilver>%14s: ", k:title())
 
-          if debt > 0 then str = str .. "<orange>" .. math.floor(debt) .. " gold " end
+          if debt > 0 then str = str .. "<orange>" .. goldeneyes.format(debt) .. " gold " end
           if unknown > 0 then str = str .. "<red>(+" .. unknown .. " unknown piles!)" end
           cecho(str .. "\n")
       end
@@ -222,7 +222,7 @@ goldeneyes.plus = function (amt, noecho)
   end
 
   x.total = x.total + original_amt
-  if not noecho then x.echo ("<msGold>" .. original_amt .. " <msSilver>gold added") end
+  if not noecho then x.echo ("<msGold>" .. goldeneyes.format(original_amt) .. " <msSilver>gold added") end
   x.showprompt ()
 end
 
@@ -241,7 +241,7 @@ goldeneyes.minus = function (amt)
   end
 
   x.total = x.total - amt
-  x.echo ("<msGold>" .. amt .. " <msSilver>gold removed.")
+  x.echo ("<msGold>" .. goldeneyes.format(amt) .. " <msSilver>gold removed.")
   x.showprompt ()
 end
 
@@ -255,10 +255,10 @@ goldeneyes.handle_loot = function (amt)
   else
       if goldeneyes.autohandover then
           send("give " .. amt .. " gold to " .. acc)
-          goldeneyes.echo("Looted <msGold>"..amt.."<msSilver>. Handing over to <msGold>"..acc)
+          goldeneyes.echo("Looted <msGold>"..goldeneyes.format(amt).."<msSilver>. Handing over to <msGold>"..acc)
       else
-          send("pt I picked up " .. amt .. " gold.")
-          goldeneyes.echo("Looted <msGold>"..amt.."<msSilver>. Reported to party.")
+          send("pt I picked up " .. goldeneyes.format(amt) .. " gold.")
+          goldeneyes.echo("Looted <msGold>"..goldeneyes.format(amt).."<msSilver>. Reported to party.")
       end
   end
 end
@@ -298,7 +298,7 @@ goldeneyes.remove = function (name)
   name = name:lower()
   if goldeneyes.names[name] ~= nil then
     goldeneyes.echo ("removed <msGold>" .. name:title () .. " <msSilver>from tracking")
-    goldeneyes.echo ("<msGold>" .. name:title () .. " <msSilver>was at <msGold>" .. math.floor (goldeneyes.names[name]) .. " <msSilver>gold.")
+    goldeneyes.echo ("<msGold>" .. name:title () .. " <msSilver>was at <msGold>" .. goldeneyes.format(goldeneyes.names[name]) .. " <msSilver>gold.")
     goldeneyes.names[name] = nil
   else
     goldeneyes.echo ("<msGold>" .. name .. " <msSilver>is not currently being tracked.")
@@ -333,7 +333,7 @@ goldeneyes.reset = function ()
       goldeneyes.reset_pending = false
   else
       goldeneyes.reset_pending = true
-      cecho("\n<msSilver>[<msGold>Goldeneyes<msSilver>]: <red>WARNING!<msSilver> This will wipe ALL data (Total: " .. goldeneyes.total .. ").\n")
+      cecho("\n<msSilver>[<msGold>Goldeneyes<msSilver>]: <red>WARNING!<msSilver> This will wipe ALL data (Total: " .. goldeneyes.format(goldeneyes.total) .. ").\n")
       cecho("<msSilver>Type <msGold>goldeneyes reset<msSilver> again within 6 seconds to confirm.\n")
       goldeneyes.reset_timer = tempTimer(6, function()
           goldeneyes.reset_pending = false
@@ -376,25 +376,25 @@ goldeneyes.distribute = function (channel)
       
       if channel == "intrepid" then
           cmd = "it"
-          message = string.format("[Goldeneyes]: Distributing %d gold across %d members. Expected even share: %d gold.", goldeneyes.total, members, single_share)
+          message = string.format("[Goldeneyes]: Distributing %s gold across %d members. Expected even share: %s gold.", goldeneyes.format(goldeneyes.total), members, goldeneyes.format(single_share))
       elseif channel == "say" then
           cmd = "say"
-          message = string.format("I'll distribute our collected %d gold sovereigns now. Split evenly among the %d of us, we should each receive %d gold.", goldeneyes.total, members, single_share)
+          message = string.format("I'll distribute our collected %s gold sovereigns now. Split evenly among the %d of us, we should each receive %s gold.", goldeneyes.format(goldeneyes.total), members, goldeneyes.format(single_share))
       else
           cmd = "pt"
-          message = string.format("[Goldeneyes]: Distributing %d gold across %d members. Expected even share: %d gold.", goldeneyes.total, members, single_share)
+          message = string.format("[Goldeneyes]: Distributing %s gold across %d members. Expected even share: %s gold.", goldeneyes.format(goldeneyes.total), members, goldeneyes.format(single_share))
       end
   else
       -- "Fair" Strategy Announcement (No expected share is promised since it varies)
       if channel == "intrepid" then
           cmd = "it"
-          message = string.format("[Goldeneyes]: Distributing %d gold across %d members. Shares are prorated based on hunt participation.", goldeneyes.total, members)
+          message = string.format("[Goldeneyes]: Distributing %s gold across %d members. Shares are prorated based on hunt participation.", goldeneyes.format(goldeneyes.total), members)
       elseif channel == "say" then
           cmd = "say"
-          message = string.format("I am now distributing our collected %d gold sovereigns across the %d of us, distributed fairly based on when you joined the hunt.", goldeneyes.total, members)
+          message = string.format("I am now distributing our collected %s gold sovereigns across the %d of us, distributed fairly based on when you joined the hunt.", goldeneyes.format(goldeneyes.total), members)
       else
           cmd = "pt"
-          message = string.format("[Goldeneyes]: Distributing %d gold across %d members. Shares are prorated based on hunt participation.", goldeneyes.total, members)
+          message = string.format("[Goldeneyes]: Distributing %s gold across %d members. Shares are prorated based on hunt participation.", goldeneyes.format(goldeneyes.total), members)
       end
   end
   
@@ -428,6 +428,7 @@ goldeneyes.help = function ()
     cecho ("    <msGold>goldeneyes accountant <name> <msSilver>- Designate the collector (Default: You).\n")
     cecho ("    <msGold>goldeneyes autohandover <on|off> <msSilver>- Automatically give loot to Accountant.\n")
     cecho ("    <msGold>goldeneyes party             <msSilver>- Auto-add your current party members.\n")
+    cecho ("    <msGold>goldeneyes alerts <on|off>   <msSilver>- Toggle clickable party join/leave prompts.\n")
     cecho ("    <msGold>goldeneyes add <name>        <msSilver>- Add a person to the split list.\n")
     cecho ("    <msGold>goldeneyes remove <name>     <msSilver>- Remove a person from the list.\n")
     cecho ("\n<msGold>LOOT & AUTOMATION\n")
@@ -440,7 +441,6 @@ goldeneyes.help = function ()
     cecho ("    <msGold>goldeneyes loot <amount>     <msSilver>- Manually simulate picking up loot.\n")
     cecho ("    <msGold>goldeneyes plus <amount>     <msSilver>- Manually add to Total.\n")
     cecho ("    <msGold>goldeneyes minus <amount>    <msSilver>- Manually subtract from Total.\n\n")
-    cecho ("    <msGold>goldeneyes alerts <on|off>   <msSilver>- Toggle clickable party join/leave prompts.\n")
     goldeneyes.showprompt ()
 end
 
@@ -467,7 +467,7 @@ end
 goldeneyes.add_expense = function(amt)
     if goldeneyes.enabled then
         goldeneyes.expenses = goldeneyes.expenses + amt
-        goldeneyes.echo("Tracked expense of <orange>" .. amt .. "<msSilver> gold.")
+        goldeneyes.echo("Tracked expense of <orange>" .. goldeneyes.format(amt) .. "<msSilver> gold.")
     end
 end
 
@@ -490,15 +490,15 @@ goldeneyes.announce = function(channel)
     
     if channel == "intrepid" then
         cmd = "it"
-        message = "We have collected a total of " .. goldeneyes.total .. " gold so far."
+        message = "We have collected a total of " .. goldeneyes.format(goldeneyes.total) .. " gold so far."
     elseif channel == "say" then
         cmd = "say"
         -- RP-friendly, non-spammy verbiage
-        message = "By my calculations, we have collected a total of " .. goldeneyes.total .. " gold sovereigns thus far."
+        message = "By my calculations, we have collected a total of " .. goldeneyes.format(goldeneyes.total) .. " gold sovereigns thus far."
     else
         -- Catch-all defaults to party
         cmd = "pt"
-        message = "We have collected a total of " .. goldeneyes.total .. " gold so far."
+        message = "We have collected a total of " .. goldeneyes.format(goldeneyes.total) .. " gold so far."
     end
     
     send(cmd .. " " .. message)
@@ -533,17 +533,17 @@ goldeneyes.process_gold_capture = function(hand, bank)
         goldeneyes.baseline.hand = hand
         goldeneyes.baseline.bank = bank
         goldeneyes.baseline.set = true
-        goldeneyes.echo("Baseline set. Hand: " .. hand .. ", Bank: " .. bank)
+        goldeneyes.echo("Baseline set. Hand: " .. goldeneyes.format(hand) .. ", Bank: " .. goldeneyes.format(bank))
         
     elseif goldeneyes.capture_mode == "check" then
         local wealth_change = (hand + bank) - (goldeneyes.baseline.hand + goldeneyes.baseline.bank)
         local hidden_profit = wealth_change + goldeneyes.expenses - goldeneyes.total
         
         if hidden_profit > 0 then
-            goldeneyes.echo("<orange>Hidden Reward Detected!<msSilver> You gained <msGold>" .. hidden_profit .. "<msSilver> gold.")
+            goldeneyes.echo("<orange>Hidden Reward Detected!<msSilver> You gained <msGold>" .. goldeneyes.format(hidden_profit) .. "<msSilver> gold.")
             goldeneyes.plus(hidden_profit)
         elseif hidden_profit < 0 then
-             goldeneyes.echo("Math check negative (" .. hidden_profit .. "). Did you spend gold we missed?")
+             goldeneyes.echo("Math check negative (" .. goldeneyes.format(hidden_profit) .. "). Did you spend gold we missed?")
         else
              goldeneyes.echo("No hidden rewards found (Math is balanced).")
         end
@@ -634,13 +634,13 @@ goldeneyes.create_triggers = function()
             goldeneyes.plus(amount)
             if goldeneyes.ledger[name_key] then
                 goldeneyes.ledger[name_key] = goldeneyes.ledger[name_key] - amount
-                cecho(string.format("\n<msSilver>[<msGold>Goldeneyes<msSilver>]: %s paid off %d (Remaining: %d).", name, amount, goldeneyes.ledger[name_key]))
+                cecho(string.format("\n<msSilver>[<msGold>Goldeneyes<msSilver>]: %s paid off %s (Remaining: %s).", name, goldeneyes.format(amount), goldeneyes.format(goldeneyes.ledger[name_key])))
                 if goldeneyes.ledger[name_key] <= 0 then
                     goldeneyes.ledger[name_key] = nil
                     cecho(string.format("\n<msSilver>[<msGold>Goldeneyes<msSilver>]: %s has settled their debt.", name))
                 end
             else
-                cecho(string.format("\n<msSilver>[<msGold>Goldeneyes<msSilver>]: Accepted %d gold from %s (No prior debt).", amount, name))
+                cecho(string.format("\n<msSilver>[<msGold>Goldeneyes<msSilver>]: Accepted %s gold from %s (No prior debt).", goldeneyes.format(amount), name))
             end
         end
     ]]))
@@ -654,7 +654,7 @@ goldeneyes.create_triggers = function()
 
         if goldeneyes.names[name_key] then
             goldeneyes.ledger[name_key] = (goldeneyes.ledger[name_key] or 0) + amount
-            cecho(string.format("\n<msSilver>[<msGold>Goldeneyes<msSilver>]: <orange>ALERT<msSilver>: <msGold>%s<msSilver> picked up <orange>%d<msSilver> gold!", name, amount))
+            cecho(string.format("\n<msSilver>[<msGold>Goldeneyes<msSilver>]: <orange>ALERT<msSilver>: <msGold>%s<msSilver> picked up <orange>%s<msSilver> gold!", name, goldeneyes.format(amount)))
         end
     ]]))
 
