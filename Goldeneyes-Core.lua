@@ -695,17 +695,21 @@ function goldeneyes_login_check()
   if goldeneyes.pickup then
       goldeneyes.echo("Auto-pickup is <msGold>ENABLED<msSilver>.")
   end
+
+  -- Login Prompt for Stale Ledgers
+  -- We only prompt once per Mudlet session, and only if there's actually gold tracked
+  if not goldeneyes.login_prompted and goldeneyes.total > 0 then
+      goldeneyes.login_prompted = true
+      
+      cecho("\n<msSilver>[<msGold>Goldeneyes<msSilver>]: <yellow>Welcome back! You have an active hunting ledger with " .. goldeneyes.format(goldeneyes.total) .. " gold.<reset>\n")
+      cecho("       ")
+      -- We bypass the double-tap reset here and call confirm_reset() directly for speed
+      cechoLink("<red>[Start Fresh]", "goldeneyes.confirm_reset()", "Wipe all data for a new hunt", true)
+      cecho(" <msSilver>| ")
+      cechoLink("<green>[Keep Data]", "goldeneyes.echo('Ledger preserved. Type \\'gold\\' to view.')", "Resume previous hunt", true)
+      cecho("\n")
+  end
 end
-
-if goldeneyes.login_handler then killAnonymousEventHandler(goldeneyes.login_handler) end
-goldeneyes.login_handler = registerAnonymousEventHandler("gmcp.Char.Name", "goldeneyes_login_check")
-
--- Save data when Mudlet closes or disconnects from Achaea
-if goldeneyes.save_exit_handler then killAnonymousEventHandler(goldeneyes.save_exit_handler) end
-goldeneyes.save_exit_handler = registerAnonymousEventHandler("sysExitEvent", "goldeneyes.save")
-
-if goldeneyes.save_dc_handler then killAnonymousEventHandler(goldeneyes.save_dc_handler) end
-goldeneyes.save_dc_handler = registerAnonymousEventHandler("sysDisconnectionEvent", "goldeneyes.save")
 
 -- =========================================================== --
 --               DYNAMIC TRIGGERS & ALIASES                    --
@@ -801,23 +805,29 @@ goldeneyes.create_triggers = function()
     ]]))
 
     -- 8. Capture Gold (All Sources)
-    table.insert(goldeneyes.trigger_ids, tempRegexTrigger("^You have .* gold sovereigns? in your .*", 
+    -- We removed the strict grammar check and replaced it with a fuzzy search 
+    -- that catches gold regardless of commas or Achaea's sentence structure.
+    table.insert(goldeneyes.trigger_ids, tempRegexTrigger("^You have .* gold sovereigns? in .*", 
     [[
         if goldeneyes.capture_mode then
             local line = matches[1]
             local total_hand = 0
             local total_bank = 0
 
-            for amount_str, location in string.gmatch(line, "([%d,]+) gold sovereigns? in your (%w+)") do
-                local clean_str = (string.gsub(amount_str, ",", ""))
-                local amount = tonumber(clean_str)
-
-                if location == "inventory" or location == "containers" then
-                    total_hand = total_hand + amount
-                elseif location == "bank" then
-                    total_bank = total_bank + amount
+            -- Match the number, and capture all text up until the NEXT number starts
+            for amount_str, context in string.gmatch(line, "([%d,]+) gold sovereigns? in([^0-9,]+)") do
+                local clean_amt = tonumber((string.gsub(amount_str, ",", "")))
+                
+                if clean_amt then
+                    -- Fuzzy match the context string for the location keywords
+                    if string.match(context, "inventory") or string.match(context, "container") then
+                        total_hand = total_hand + clean_amt
+                    elseif string.match(context, "bank") then
+                        total_bank = total_bank + clean_amt
+                    end
                 end
             end
+            
             goldeneyes.process_gold_capture(total_hand, total_bank)
         end
     ]]))
