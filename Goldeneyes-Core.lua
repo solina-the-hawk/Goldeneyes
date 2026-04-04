@@ -652,15 +652,20 @@ goldeneyes.process_gold_capture = function(hand, bank)
     hand = hand or 0
     bank = bank or 0
     
-    if goldeneyes.capture_mode == "baseline" then
+    if goldeneyes.capture_mode == "tellbaseline" then
         goldeneyes.baseline.hand = hand
         goldeneyes.baseline.bank = bank
+        -- Store the ledger total at the exact moment of the snapshot
+        goldeneyes.baseline.total = goldeneyes.total 
         goldeneyes.baseline.set = true
         goldeneyes.echo("Baseline set. Hand: " .. goldeneyes.format(hand) .. ", Bank: " .. goldeneyes.format(bank))
         
     elseif goldeneyes.capture_mode == "check" then
         local wealth_change = (hand + bank) - (goldeneyes.baseline.hand + goldeneyes.baseline.bank)
-        local hidden_profit = wealth_change + goldeneyes.expenses - goldeneyes.total
+        -- Calculate only the gold tracked SINCE the last snapshot
+        local tracked_change = goldeneyes.total - (goldeneyes.baseline.total or 0)
+        
+        local hidden_profit = wealth_change + goldeneyes.expenses - tracked_change
         
         if hidden_profit > 0 then
             goldeneyes.echo("<orange>Hidden Reward Detected!<msSilver> You gained <msGold>" .. goldeneyes.format(hidden_profit) .. "<msSilver> gold.")
@@ -670,8 +675,11 @@ goldeneyes.process_gold_capture = function(hand, bank)
         else
              goldeneyes.echo("No hidden rewards found (Math is balanced).")
         end
+        
+        -- Update the baseline for the next check
         goldeneyes.baseline.hand = hand
         goldeneyes.baseline.bank = bank
+        goldeneyes.baseline.total = goldeneyes.total
         goldeneyes.expenses = 0 
     end
     goldeneyes.capture_mode = nil
