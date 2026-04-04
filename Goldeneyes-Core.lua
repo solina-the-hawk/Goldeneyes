@@ -69,11 +69,11 @@ end
 
 goldeneyes.format = function(amount)
     if not amount then return "0" end
-    -- Force it into a whole number string
+    -- Force it into a whole number string.
     local formatted = tostring(math.floor(tonumber(amount) or 0))
     local k
     while true do
-        -- Insert a comma every 3 digits from the right
+        -- Insert a comma every 3 digits from the right.
         formatted, k = string.gsub(formatted, "^(-?%d+)(%d%d%d)", '%1,%2')
         if (k == 0) then break end
     end
@@ -81,7 +81,7 @@ goldeneyes.format = function(amount)
 end
 
 goldeneyes.get_save_path = function()
-    -- Mudlet natively handles "/" for paths on both Windows and Mac/Linux
+    -- Mudlet natively handles "/" for paths on both Windows and Mac/Linux, so this should be ok anywhere I hope.
     return getMudletHomeDir() .. "/Goldeneyes-Data.lua"
 end
 
@@ -143,17 +143,19 @@ goldeneyes.display = function ()
   local accountant = goldeneyes.accountant or current_name
   local role = (accountant:lower() == current_name:lower()) and "<green>(Me)" or "<yellow>(" .. accountant .. ")"
   local strat_text = (goldeneyes.split_strategy == "even") and "<green>Even" or "<yellow>Fair"
+  local cont = goldeneyes.container or "pack"
 
   local elapsed = os.time() - goldeneyes.starttime
   if elapsed < 1 then elapsed = 1 end
   local gph = math.floor((goldeneyes.total / elapsed) * 3600)
 
   cecho ("\n<msGold>Goldeneyes Gold Tracking Ledger\n")
-  cecho ("<msSilver>  Enter <msGold>goldeneyes help <green>for commands and settings.\n")
+  cecho ("<msSilver>  Enter <msGold>goldeneyes help <msSilver>for commands and settings.\n")
   cecho ("\n")
-  cecho ("  <msGold>Gold Tracking: " .. status .. "\n")
+  cecho ("  <msSilver>Gold Tracking: <green>" .. status .. "\n")
   cecho ("  <msSilver>Accountant: " .. role .. "\n")
   cecho ("  <msSilver>Strategy: " .. strat_text .. "\n\n")
+  cecho ("  <msSilver>Container:  <msGold>" .. cont .. "\n\n")
   
   cecho ("  <msSilver>Gold Collected: <msGold>" .. goldeneyes.format(goldeneyes.total) .. "\n")
   cecho ("  <msSilver>Gold per hour:  <msGold>" .. goldeneyes.format(gph) .. "\n")
@@ -240,6 +242,9 @@ goldeneyes.set_strategy = function(strat)
     if strat == "even" or strat == "fair" then
         goldeneyes.split_strategy = strat
         goldeneyes.echo("Split strategy set to: <msGold>" .. strat:title())
+        cecho("\n<msSilver>Even split will divide the total gold pool equally among members at distribution time, regardless of when a member.\n")
+        cecho("\n<msSilver>Fair split will distribute gold based on when each person joined the party, distribution time.\n")
+
         goldeneyes.showprompt()
     else
         cecho("\n<msSilver>Usage: <msGold>goldeneyes strategy <even|fair>")
@@ -317,14 +322,14 @@ goldeneyes.handle_loot = function (amt)
       end
   else
       if goldeneyes.autohandover then
-          send("give " .. amt .. " gold to " .. acc)
+          send("queue add eqbal give " .. amt .. " gold to " .. acc)
           goldeneyes.echo("Looted <msGold>"..goldeneyes.format(amt).."<msSilver>. Handing over to <msGold>"..acc)
       else
           send("pt I picked up " .. goldeneyes.format(amt) .. " gold.")
           goldeneyes.echo("Looted <msGold>"..goldeneyes.format(amt).."<msSilver>. Reported to party.")
           -- Quietly stash it since we are holding onto it for now
           if cont:lower() ~= "none" and cont:lower() ~= "inventory" then
-              send("put " .. amt .. " gold in " .. cont, false)
+              send("queue add eqbal put " .. amt .. " gold in " .. cont, false)
           end
       end
   end
@@ -489,32 +494,32 @@ goldeneyes.distribute = function (channel)
 end
 
 goldeneyes.help = function ()
-    cecho ("\n<msGold>Goldeneyes Gold Tracking Ledger Help Information\n")
+    cecho ("\n<msGold>Goldeneyes Gold Tracking Ledger - Help Information\n")
     cecho ("<msSilver>Commands work with <msGold>goldeneyes<msSilver> or <msGold>gold<msSilver>\n")
     cecho ("<msSilver>----------------------------------------------------------------------\n")
     cecho ("<msGold>BASIC CONTROLS\n")
-    cecho ("    <msGold>goldeneyes <on|off>          <msSilver>- Turn tracker on/off.\n")
-    cecho ("    <msGold>goldeneyes reset             <msSilver>- Reset all totals (enter twice to confirm).\n")
-    cecho ("    <msGold>goldeneyes report [channel]  <msSilver>- Announce totals (Channels: party, intrepid, say).\n")
+    cecho ("  <msGold>goldeneyes <on|off>            <msSilver>- Turn tracker on/off.\n")
+    cecho ("  <msGold>goldeneyes reset               <msSilver>- Reset all totals (enter twice to confirm).\n")
+    cecho ("  <msGold>goldeneyes report [channel]    <msSilver>- Announce totals (Channels: party, intrepid, say).\n")
     cecho ("\n<msGold>GROUP & ACCOUNTING\n")
-    cecho ("    <msGold>goldeneyes strategy <even|fair><msSilver>- Set split method (Default: even).\n")
-    cecho ("    <msGold>goldeneyes accountant <name> <msSilver>- Designate the collector (Default: You).\n")
-    cecho ("    <msGold>goldeneyes autohandover <on|off> <msSilver>- Automatically give loot to Accountant.\n")
-    cecho ("    <msGold>goldeneyes party             <msSilver>- Auto-add your current party members.\n")
-    cecho ("    <msGold>goldeneyes alerts <on|off>   <msSilver>- Toggle clickable party join/leave prompts.\n")
-    cecho ("    <msGold>goldeneyes add <name>        <msSilver>- Add a person to the split list.\n")
-    cecho ("    <msGold>goldeneyes remove <name>     <msSilver>- Remove a person from the list.\n")
+    cecho ("  <msGold>goldeneyes strategy <even|fair><msSilver>- Set split method (Default: even).\n")
+    cecho ("  <msGold>goldeneyes accountant <name>   <msSilver>- Designate the collector (Default: You).\n")
+    cecho ("  <msGold>goldeneyes autohandover <on|off><msSilver>- Automatically give loot to Accountant.\n")
+    cecho ("  <msGold>goldeneyes party               <msSilver>- Auto-add your current party members.\n")
+    cecho ("  <msGold>goldeneyes alerts <on|off>     <msSilver>- Toggle clickable party join/leave prompts.\n")
+    cecho ("  <msGold>goldeneyes add <name>          <msSilver>- Add a person to the split list.\n")
+    cecho ("  <msGold>goldeneyes remove <name>       <msSilver>- Remove a person from the list.\n")
     cecho ("\n<msGold>LOOT & AUTOMATION\n")
-    cecho ("    <msGold>goldeneyes autoloot <on|off> <msSilver>- Toggle auto-looting.\n")
-    cecho ("    <msGold>goldeneyes container <name>  <msSilver>- Set loot bag (e.g., 'pack').\n")
-    cecho ("    <msGold>goldeneyes stash             <msSilver>- Move all carried gold to container.\n")
-    cecho ("    <msGold>goldeneyes distribute [channel]<msSilver>- Empty container and share gold.\n")
+    cecho ("  <msGold>goldeneyes autoloot <on|off>   <msSilver>- Toggle auto-looting.\n")
+    cecho ("  <msGold>goldeneyes container <name>    <msSilver>- Set gold container (e.g., 'pack').\n")
+    cecho ("  <msGold>goldeneyes stash               <msSilver>- Move all carried gold to container.\n")
+    cecho ("  <msGold>goldeneyes distribute [channel]<msSilver>- Empty container and share gold.\n")
     cecho ("\n<msGold>ADVANCED\n")
-    cecho ("    <msGold>goldeneyes calc <amt> <#>  <msSilver>- Quick math to split an amount of gold.\n")
-    cecho ("    <msGold>goldeneyes snapshot / check  <msSilver>- Capture 'Show Gold' to find hidden rewards.\n")
-    cecho ("    <msGold>goldeneyes loot <amount>     <msSilver>- Manually simulate picking up loot.\n")
-    cecho ("    <msGold>goldeneyes plus <amount>     <msSilver>- Manually add to Total.\n")
-    cecho ("    <msGold>goldeneyes minus <amount>    <msSilver>- Manually subtract from Total.\n\n")
+    cecho ("  <msGold>goldeneyes calc <amt> <#>      <msSilver>- Quick math to split an amount of gold.\n")
+    cecho ("  <msGold>goldeneyes check               <msSilver>- Capture 'Show Gold' to find hidden rewards.\n")
+    cecho ("  <msGold>goldeneyes loot <amount>       <msSilver>- Manually simulate picking up loot.\n")
+    cecho ("  <msGold>goldeneyes plus <amount>       <msSilver>- Manually add to Total.\n")
+    cecho ("  <msGold>goldeneyes minus <amount>      <msSilver>- Manually subtract from Total.\n\n")
     goldeneyes.showprompt ()
 end
 
@@ -647,23 +652,25 @@ goldeneyes.check_reward = function()
 end
 
 goldeneyes.process_gold_capture = function(hand, bank)
+    -- Safety structure checks to prevent silent crashes
+    if type(goldeneyes.baseline) ~= "table" then goldeneyes.baseline = {hand = 0, bank = 0, set = false} end
+    
+    -- Safely strip commas and convert to numbers
     if type(hand) == "string" then hand = tonumber((string.gsub(hand, ",", ""))) end
     if type(bank) == "string" then bank = tonumber((string.gsub(bank, ",", ""))) end
     hand = hand or 0
     bank = bank or 0
     
-    if goldeneyes.capture_mode == "tellbaseline" then
+    if goldeneyes.capture_mode == "baseline" then
         goldeneyes.baseline.hand = hand
         goldeneyes.baseline.bank = bank
-        -- Store the ledger total at the exact moment of the snapshot
-        goldeneyes.baseline.total = goldeneyes.total 
+        goldeneyes.baseline.total = goldeneyes.total or 0 
         goldeneyes.baseline.set = true
         goldeneyes.echo("Baseline set. Hand: " .. goldeneyes.format(hand) .. ", Bank: " .. goldeneyes.format(bank))
         
     elseif goldeneyes.capture_mode == "check" then
-        local wealth_change = (hand + bank) - (goldeneyes.baseline.hand + goldeneyes.baseline.bank)
-        -- Calculate only the gold tracked SINCE the last snapshot
-        local tracked_change = goldeneyes.total - (goldeneyes.baseline.total or 0)
+        local wealth_change = (hand + bank) - ((goldeneyes.baseline.hand or 0) + (goldeneyes.baseline.bank or 0))
+        local tracked_change = (goldeneyes.total or 0) - (goldeneyes.baseline.total or 0)
         
         local hidden_profit = wealth_change + goldeneyes.expenses - tracked_change
         
@@ -812,10 +819,8 @@ goldeneyes.create_triggers = function()
         end
     ]]))
 
-    -- 8. Capture Gold (All Sources)
-    -- We removed the strict grammar check and replaced it with a fuzzy search 
-    -- that catches gold regardless of commas or Achaea's sentence structure.
-    table.insert(goldeneyes.trigger_ids, tempRegexTrigger("^You have .* gold sovereigns? in .*", 
+ -- 8. Capture Gold (All Sources)
+    table.insert(goldeneyes.trigger_ids, tempRegexTrigger("^You have [%d,]+ gold sovereign", 
     [[
         if goldeneyes.capture_mode then
             local line = matches[1]
@@ -823,7 +828,7 @@ goldeneyes.create_triggers = function()
             local total_bank = 0
 
             -- Match the number, and capture all text up until the NEXT number starts
-            for amount_str, context in string.gmatch(line, "([%d,]+) gold sovereigns? in([^0-9,]+)") do
+            for amount_str, context in string.gmatch(line, "([%d,]+)%s+gold sovereigns? in([^0-9,]+)") do
                 local clean_amt = tonumber((string.gsub(amount_str, ",", "")))
                 
                 if clean_amt then
