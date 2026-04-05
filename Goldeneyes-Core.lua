@@ -10,7 +10,7 @@ goldeneyes.settings = {}
 -- =========================================================== --
 goldeneyes.settings.commandseparator = ";"
 goldeneyes.settings.getalias = false
-goldeneyes.settings.container = "box"
+goldeneyes.settings.container = goldeneyes.settings.container or"pouch"
 goldeneyes.settings.promptfunction = false
 
 if goldeneyes.getsettings then goldeneyes.getsettings() end
@@ -20,8 +20,8 @@ if goldeneyes.getsettings then goldeneyes.getsettings() end
 -- =========================================================== --
 
 -- 1. Initialize Colors
-color_table.msGold = {255,215,0}
-color_table.msSilver = {160,160,160}
+color_table.geGold = {255,215,0}
+color_table.geSilver = {160,160,160}
 
 -- 2. Initialize Defaults
 if goldeneyes.enabled == nil then goldeneyes.enabled = true end
@@ -55,7 +55,7 @@ function goldeneyes.count(t)
 end
 
 goldeneyes.echo = function (x)
-  cecho ("\n<msSilver>[<msGold>Goldeneyes<msSilver>]: " .. x .. "<reset>")
+  cecho ("\n<geSilver>[<geGold>Goldeneyes<geSilver>]: " .. x .. "<reset>")
 end
 
 goldeneyes.getsettings = function ()
@@ -138,7 +138,7 @@ goldeneyes.getsettings()
 --                     CORE FUNCTIONS                          --
 -- =========================================================== --
 goldeneyes.display = function ()
-  local status = goldeneyes.enabled and "<msGold>enabled" or "<msSilver>disabled"
+  local status = goldeneyes.enabled and "<geGold>enabled" or "<geSilver>disabled"
   local current_name = (gmcp and gmcp.Char and gmcp.Char.Name and gmcp.Char.Name.name) or "Unknown"
   local accountant = goldeneyes.accountant or current_name
   local role = (accountant:lower() == current_name:lower()) and "<green>(Me)" or "<yellow>(" .. accountant .. ")"
@@ -149,21 +149,21 @@ goldeneyes.display = function ()
   if elapsed < 1 then elapsed = 1 end
   local gph = math.floor((goldeneyes.total / elapsed) * 3600)
 
-  cecho ("\n<msGold>Goldeneyes Gold Tracking Ledger\n")
-  cecho ("<msSilver>  Enter <msGold>goldeneyes help <msSilver>for commands and settings.\n")
+  cecho ("\n<geGold>Goldeneyes Gold Tracking Ledger\n")
+  cecho ("<geSilver>  Enter <geGold>goldeneyes help <geSilver>for commands and settings.\n")
   cecho ("\n")
-  cecho ("  <msSilver>Gold Tracking: <green>" .. status .. "\n")
-  cecho ("  <msSilver>Accountant: " .. role .. "\n")
-  cecho ("  <msSilver>Strategy: " .. strat_text .. "\n\n")
-  cecho ("  <msSilver>Container:  <msGold>" .. cont .. "\n\n")
+  cecho ("  <geSilver>Gold Tracking: <green>" .. status .. "\n")
+  cecho ("  <geSilver>Accountant: " .. role .. "\n")
+  cecho ("  <geSilver>Strategy: " .. strat_text .. "\n")
+  cecho ("  <geSilver>Container:  <geGold>" .. cont .. "\n\n")
   
-  cecho ("  <msSilver>Gold Collected: <msGold>" .. goldeneyes.format(goldeneyes.total) .. "\n")
-  cecho ("  <msSilver>Gold per hour:  <msGold>" .. goldeneyes.format(gph) .. "\n")
+  cecho ("  <geSilver>Gold Collected: <geGold>" .. goldeneyes.format(goldeneyes.total) .. "\n")
+  cecho ("  <geSilver>Gold per hour:  <geGold>" .. goldeneyes.format(gph) .. "\n")
 
   if goldeneyes.org.name then
-    cecho ("\n  <msSilver>" .. string.format ("%14s", goldeneyes.org.name:title ()) ..
-           ": <msGold>" .. string.format ("%-8s", goldeneyes.format(goldeneyes.org.gold)) ..
-           " <msSilver>(" .. goldeneyes.org.percent ..  "%)\n")
+    cecho ("\n  <geSilver>" .. string.format ("%14s", goldeneyes.org.name:title ()) ..
+           ": <geGold>" .. string.format ("%-8s", goldeneyes.format(goldeneyes.org.gold)) ..
+           " <geSilver>(" .. goldeneyes.org.percent ..  "%)\n")
   end
 
   if goldeneyes.count(goldeneyes.names) > 0 then 
@@ -173,7 +173,7 @@ goldeneyes.display = function ()
   -- Use our new dynamic shares calculator for the display
   local shares = goldeneyes.get_shares()
   for k, v in pairs (shares) do
-    cecho ("  <msSilver>" .. string.format ("%14s", k:title ()) .. ": <msGold>" .. goldeneyes.format(v) .. "\n")
+    cecho ("  <geSilver>" .. string.format ("%14s", k:title ()) .. ": <geGold>" .. goldeneyes.format(v) .. "\n")
   end
 
   local ledger_count = goldeneyes.count(goldeneyes.ledger)
@@ -188,7 +188,7 @@ goldeneyes.display = function ()
       for k, _ in pairs(all_holders) do
           local debt = goldeneyes.ledger[k] or 0
           local unknown = goldeneyes.unknown_ledger[k] or 0
-          local str = string.format("  <msSilver>%14s: ", k:title())
+          local str = string.format("  <geSilver>%14s: ", k:title())
 
           if debt > 0 then str = str .. "<orange>" .. goldeneyes.format(debt) .. " gold " end
           if unknown > 0 then str = str .. "<red>(+" .. unknown .. " unknown piles!)" end
@@ -201,17 +201,17 @@ end
 
 goldeneyes.set_accountant = function(name)
     goldeneyes.accountant = name:title()
-    goldeneyes.echo("Collector set to <msGold>" .. name)
+    goldeneyes.echo("Collector set to <geGold>" .. name)
     goldeneyes.showprompt()
 end
 
 goldeneyes.toggle_handover = function(val)
     if val == "on" then
         goldeneyes.autohandover = true
-        goldeneyes.echo("Auto-Handover <green>ENABLED<msSilver>. I will give gold to " .. goldeneyes.accountant)
+        goldeneyes.echo("Auto-Handover <green>ENABLED<geSilver>. I will give gold to " .. goldeneyes.accountant)
     else
         goldeneyes.autohandover = false
-        goldeneyes.echo("Auto-Handover <red>DISABLED<msSilver>.")
+        goldeneyes.echo("Auto-Handover <red>DISABLED<geSilver>.")
     end
 end
 
@@ -241,13 +241,13 @@ goldeneyes.set_strategy = function(strat)
     strat = strat and strat:lower() or "even"
     if strat == "even" or strat == "fair" then
         goldeneyes.split_strategy = strat
-        goldeneyes.echo("Split strategy set to: <msGold>" .. strat:title())
-        cecho("\n<msSilver>Even split will divide the total gold pool equally among members at distribution time, regardless of when a member.\n")
-        cecho("\n<msSilver>Fair split will distribute gold based on when each person joined the party, distribution time.\n")
+        goldeneyes.echo("Split strategy set to: <geGold>" .. strat:title())
+        cecho("\n<geGold>Even <geSilver>split will divide the total gold pool equally among members at distribution time, regardless of when a member.\n")
+        cecho("\n<geGold>Fair <geSilver>split will distribute gold based on when each person joined the party, distribution time.\n")
 
         goldeneyes.showprompt()
     else
-        cecho("\n<msSilver>Usage: <msGold>goldeneyes strategy <even|fair>")
+        cecho("\n<geSilver>Usage: <geGold>goldeneyes strategy <even|fair>")
     end
 end
 
@@ -258,7 +258,7 @@ goldeneyes.toggle = function (enabled)
   if state and goldeneyes.count(goldeneyes.names) == 0 and gmcp.Char and gmcp.Char.Name then
       goldeneyes.add(gmcp.Char.Name.name:lower())
   end
-  goldeneyes.echo ("tracking " .. (state and "<msGold>enabled" or "<msSilver>disabled"))
+  goldeneyes.echo ("tracking " .. (state and "<geGold>enabled" or "<geSilver>disabled"))
   goldeneyes.showprompt ()
 end
 
@@ -280,7 +280,7 @@ goldeneyes.plus = function (amt, noecho)
   end
 
   x.total = x.total + original_amt
-  if not noecho then x.echo ("<msGold>" .. goldeneyes.format(original_amt) .. " <msSilver>gold added") end
+  if not noecho then x.echo ("<geGold>" .. goldeneyes.format(original_amt) .. " <geSilver>gold added") end
   x.showprompt ()
 end
 
@@ -299,7 +299,7 @@ goldeneyes.minus = function (amt)
   end
 
   x.total = x.total - amt
-  x.echo ("<msGold>" .. goldeneyes.format(amt) .. " <msSilver>gold removed.")
+  x.echo ("<geGold>" .. goldeneyes.format(amt) .. " <geSilver>gold removed.")
   x.showprompt ()
 end
 
@@ -314,7 +314,7 @@ goldeneyes.handle_loot = function (amt)
       goldeneyes.plus(amt, true)
       
       -- Announce the new total
-      goldeneyes.echo("Gold added to ledger. New total is <msGold>" .. goldeneyes.format(goldeneyes.total) .. "<msSilver> gold.")
+      goldeneyes.echo("Gold added to ledger. New total is <geGold>" .. goldeneyes.format(goldeneyes.total) .. "<geSilver> gold.")
       
       -- Quietly stash it if we are the accountant
       if cont:lower() ~= "none" and cont:lower() ~= "inventory" then
@@ -323,10 +323,10 @@ goldeneyes.handle_loot = function (amt)
   else
       if goldeneyes.autohandover then
           send("queue add eqbal give " .. amt .. " gold to " .. acc)
-          goldeneyes.echo("Looted <msGold>"..goldeneyes.format(amt).."<msSilver>. Handing over to <msGold>"..acc)
+          goldeneyes.echo("Looted <geGold>"..goldeneyes.format(amt).."<geSilver>. Handing over to <geGold>"..acc)
       else
           send("pt I picked up " .. goldeneyes.format(amt) .. " gold.")
-          goldeneyes.echo("Looted <msGold>"..goldeneyes.format(amt).."<msSilver>. Reported to party.")
+          goldeneyes.echo("Looted <geGold>"..goldeneyes.format(amt).."<geSilver>. Reported to party.")
           -- Quietly stash it since we are holding onto it for now
           if cont:lower() ~= "none" and cont:lower() ~= "inventory" then
               send("queue add eqbal put " .. amt .. " gold in " .. cont, false)
@@ -338,10 +338,10 @@ end
 goldeneyes.add = function (name)
   name = name:lower()
   if goldeneyes.names[name] == nil then
-    goldeneyes.echo ("Added <msGold>" .. name:title () .. " <msSilver>to tracking.")
+    goldeneyes.echo ("Added <geGold>" .. name:title () .. " <geSilver>to tracking.")
     goldeneyes.names[name] = 0
   else
-    goldeneyes.echo ("<msGold>" .. name:title () .. " <msSilver>is already being tracked.")
+    goldeneyes.echo ("<geGold>" .. name:title () .. " <geSilver>is already being tracked.")
   end
   goldeneyes.showprompt ()
 end
@@ -369,11 +369,11 @@ end
 goldeneyes.remove = function (name)
   name = name:lower()
   if goldeneyes.names[name] ~= nil then
-    goldeneyes.echo ("removed <msGold>" .. name:title () .. " <msSilver>from tracking")
-    goldeneyes.echo ("<msGold>" .. name:title () .. " <msSilver>was at <msGold>" .. goldeneyes.format(goldeneyes.names[name]) .. " <msSilver>gold.")
+    goldeneyes.echo ("removed <geGold>" .. name:title () .. " <geSilver>from tracking")
+    goldeneyes.echo ("<geGold>" .. name:title () .. " <geSilver>was at <geGold>" .. goldeneyes.format(goldeneyes.names[name]) .. " <geSilver>gold.")
     goldeneyes.names[name] = nil
   else
-    goldeneyes.echo ("<msGold>" .. name .. " <msSilver>is not currently being tracked.")
+    goldeneyes.echo ("<geGold>" .. name .. " <geSilver>is not currently being tracked.")
   end
   goldeneyes.showprompt ()
 end
@@ -381,7 +381,7 @@ end
 goldeneyes.pause = function (name)
   name = name:lower()
   if goldeneyes.names[name] ~= nil then
-    goldeneyes.echo ("Gold tracking for <msGold>" .. name:title () .. " <msSilver>paused.")
+    goldeneyes.echo ("Gold tracking for <geGold>" .. name:title () .. " <geSilver>paused.")
     goldeneyes.paused[name] = goldeneyes.names[name]
     goldeneyes.names[name] = nil
   end
@@ -391,7 +391,7 @@ end
 goldeneyes.unpause = function (name)
   name = name:lower()
   if goldeneyes.paused[name] then
-    goldeneyes.echo ("Gold tracking for <msGold>" .. name:title () .. " <msSilver>unpaused.")
+    goldeneyes.echo ("Gold tracking for <geGold>" .. name:title () .. " <geSilver>unpaused.")
     goldeneyes.names[name] = goldeneyes.paused[name]
     goldeneyes.paused[name] = nil
   end
@@ -406,11 +406,11 @@ goldeneyes.reset = function ()
       goldeneyes.reset_pending = false
   else
       goldeneyes.reset_pending = true
-      cecho("\n<msSilver>[<msGold>Goldeneyes<msSilver>]: <red>WARNING!<msSilver> This will wipe ALL data (Total: " .. goldeneyes.format(goldeneyes.total) .. ").\n")
-      cecho("<msSilver>Type <msGold>goldeneyes reset<msSilver> again within 6 seconds to confirm.\n")
+      cecho("\n<geSilver>[<geGold>Goldeneyes<geSilver>]: <red>WARNING!<geSilver> This will wipe ALL data (Total: " .. goldeneyes.format(goldeneyes.total) .. ").\n")
+      cecho("<geSilver>Type <geGold>goldeneyes reset<geSilver> again within 6 seconds to confirm.\n")
       goldeneyes.reset_timer = tempTimer(6, function()
           goldeneyes.reset_pending = false
-          cecho("\n<msSilver>[<msGold>Goldeneyes<msSilver>]: Reset cancelled.\n")
+          cecho("\n<geSilver>[<geGold>Goldeneyes<geSilver>]: Reset cancelled.\n")
       end)
   end
 end
@@ -489,37 +489,37 @@ goldeneyes.distribute = function (channel)
     end
   end
 
-  goldeneyes.echo("Distributed gold from <msGold>" .. cont)
-  cecho("\n\n<msSilver>Distribution complete. Verify everyone received their share, then type <msGold>goldeneyes reset<msSilver>.\n")
+  goldeneyes.echo("Distributed gold from <geGold>" .. cont)
+  cecho("\n\n<geSilver>Distribution complete. Verify everyone received their share, then type <geGold>goldeneyes reset<geSilver>.\n")
 end
 
 goldeneyes.help = function ()
-    cecho ("\n<msGold>Goldeneyes Gold Tracking Ledger - Help Information\n")
-    cecho ("<msSilver>Commands work with <msGold>goldeneyes<msSilver> or <msGold>gold<msSilver>\n")
-    cecho ("<msSilver>----------------------------------------------------------------------\n")
-    cecho ("<msGold>BASIC CONTROLS\n")
-    cecho ("  <msGold>goldeneyes <on|off>            <msSilver>- Turn tracker on/off.\n")
-    cecho ("  <msGold>goldeneyes reset               <msSilver>- Reset all totals (enter twice to confirm).\n")
-    cecho ("  <msGold>goldeneyes report [channel]    <msSilver>- Announce totals (Channels: party, intrepid, say).\n")
-    cecho ("\n<msGold>GROUP & ACCOUNTING\n")
-    cecho ("  <msGold>goldeneyes strategy <even|fair><msSilver>- Set split method (Default: even).\n")
-    cecho ("  <msGold>goldeneyes accountant <name>   <msSilver>- Designate the collector (Default: You).\n")
-    cecho ("  <msGold>goldeneyes autohandover <on|off><msSilver>- Automatically give loot to Accountant.\n")
-    cecho ("  <msGold>goldeneyes party               <msSilver>- Auto-add your current party members.\n")
-    cecho ("  <msGold>goldeneyes alerts <on|off>     <msSilver>- Toggle clickable party join/leave prompts.\n")
-    cecho ("  <msGold>goldeneyes add <name>          <msSilver>- Add a person to the split list.\n")
-    cecho ("  <msGold>goldeneyes remove <name>       <msSilver>- Remove a person from the list.\n")
-    cecho ("\n<msGold>LOOT & AUTOMATION\n")
-    cecho ("  <msGold>goldeneyes autoloot <on|off>   <msSilver>- Toggle auto-looting.\n")
-    cecho ("  <msGold>goldeneyes container <name>    <msSilver>- Set gold container (e.g., 'pack').\n")
-    cecho ("  <msGold>goldeneyes stash               <msSilver>- Move all carried gold to container.\n")
-    cecho ("  <msGold>goldeneyes distribute [channel]<msSilver>- Empty container and share gold.\n")
-    cecho ("\n<msGold>ADVANCED\n")
-    cecho ("  <msGold>goldeneyes calc <amt> <#>      <msSilver>- Quick math to split an amount of gold.\n")
-    cecho ("  <msGold>goldeneyes check               <msSilver>- Capture 'Show Gold' to find hidden rewards.\n")
-    cecho ("  <msGold>goldeneyes loot <amount>       <msSilver>- Manually simulate picking up loot.\n")
-    cecho ("  <msGold>goldeneyes plus <amount>       <msSilver>- Manually add to Total.\n")
-    cecho ("  <msGold>goldeneyes minus <amount>      <msSilver>- Manually subtract from Total.\n\n")
+    cecho ("\n<geGold>Goldeneyes Gold Tracking Ledger - Help Information\n")
+    cecho ("<geSilver>Commands work with <geGold>goldeneyes<geSilver> or <geGold>gold<geSilver>\n")
+    cecho ("<geSilver>----------------------------------------------------------------------\n")
+    cecho ("<geGold>BASIC CONTROLS\n")
+    cecho ("  <geGold>goldeneyes <on|off>             <geSilver>- Turn tracker on/off.\n")
+    cecho ("  <geGold>goldeneyes reset                <geSilver>- Reset all totals (enter twice to confirm).\n")
+    cecho ("  <geGold>goldeneyes report [channel]     <geSilver>- Announce totals (Channels: party, intrepid, say).\n")
+    cecho ("\n<geGold>GROUP & ACCOUNTING\n")
+    cecho ("  <geGold>goldeneyes party                <geSilver>- Auto-add your current party members.\n")
+    cecho ("  <geGold>goldeneyes strategy <even|fair> <geSilver>- Set split method (Default: even).\n")
+    cecho ("  <geGold>goldeneyes accountant <name>    <geSilver>- Designate the collector (Default: You).\n")
+    cecho ("  <geGold>goldeneyes autohandover <on|off><geSilver>- Automatically give loot to Accountant.\n")
+    cecho ("  <geGold>goldeneyes alerts <on|off>      <geSilver>- Toggle clickable party join/leave prompts.\n")
+    cecho ("  <geGold>goldeneyes add <name>           <geSilver>- Add a person to the split list.\n")
+    cecho ("  <geGold>goldeneyes remove <name>        <geSilver>- Remove a person from the list.\n")
+    cecho ("\n<geGold>LOOT & AUTOMATION\n")
+    cecho ("  <geGold>goldeneyes autoloot <on|off>    <geSilver>- Toggle auto-looting.\n")
+    cecho ("  <geGold>goldeneyes container <name>     <geSilver>- Set gold container (e.g., 'pack').\n")
+    cecho ("  <geGold>goldeneyes stash                <geSilver>- Move all carried gold to container.\n")
+    cecho ("  <geGold>goldeneyes distribute [channel] <geSilver>- Empty container and share gold.\n")
+    cecho ("\n<geGold>ADVANCED\n")
+    cecho ("  <geGold>goldeneyes calc <amt> <#>       <geSilver>- Quick math to split an amount of gold.\n")
+    cecho ("  <geGold>goldeneyes check                <geSilver>- Capture 'Show Gold' to find hidden rewards.\n")
+    cecho ("  <geGold>goldeneyes plus <amount>        <geSilver>- Manually add to Total.\n")
+    cecho ("  <geGold>goldeneyes minus <amount>       <geSilver>- Manually subtract from Total.\n")
+    --cecho ("  <geGold>goldeneyes loot <amount>        <geSilver>- Manually simulate picking up loot (for testing).\n\n")
     goldeneyes.showprompt ()
 end
 
@@ -529,7 +529,7 @@ end
 goldeneyes.togglepickup = function(val)
     local state = val:lower() == "on"
     goldeneyes.pickup = state
-    goldeneyes.echo("Auto-pickup is now " .. (state and "<green>ENABLED<msSilver>" or "<red>DISABLED<msSilver>"))
+    goldeneyes.echo("Auto-pickup is now " .. (state and "<green>ENABLED<geSilver>" or "<red>DISABLED<geSilver>"))
 end
 
 goldeneyes.accept_pending = function(name)
@@ -557,26 +557,26 @@ end
 
 goldeneyes.setcontainer = function(name)
     goldeneyes.container = name
-    goldeneyes.echo("Loot container set to: <msGold>" .. name)
+    goldeneyes.echo("Loot container set to: <geGold>" .. name)
 end
 
 goldeneyes.stash = function()
     local cont = goldeneyes.container or "pack"
     send("put gold in " .. cont)
-    goldeneyes.echo("Attempting to stash gold in your <msGold>" .. cont)
+    goldeneyes.echo("Attempting to stash gold in your <geGold>" .. cont)
 end
 
 goldeneyes.add_expense = function(amt)
     if goldeneyes.enabled then
         goldeneyes.expenses = goldeneyes.expenses + amt
-        goldeneyes.echo("Tracked expense of <orange>" .. goldeneyes.format(amt) .. "<msSilver> gold.")
+        goldeneyes.echo("Tracked expense of <orange>" .. goldeneyes.format(amt) .. "<geSilver> gold.")
     end
 end
 
 goldeneyes.togglealerts = function(val)
     local state = val:lower() == "on"
     goldeneyes.party_alerts = state
-    goldeneyes.echo("Party alerts are now " .. (state and "<green>ENABLED<msSilver>" or "<red>DISABLED<msSilver>"))
+    goldeneyes.echo("Party alerts are now " .. (state and "<green>ENABLED<geSilver>" or "<red>DISABLED<geSilver>"))
 end
 
 goldeneyes.calc = function(amount, people)
@@ -587,19 +587,19 @@ goldeneyes.calc = function(amount, people)
     people = tonumber(people)
 
     if not amount or not people or people <= 0 then
-        cecho("\n<msSilver>Usage: <msGold>goldeneyes calc <amount> <number of people>\n")
+        cecho("\n<geSilver>Usage: <geGold>goldeneyes calc <amount> <number of people>\n")
         return
     end
 
     local share = math.floor(amount / people)
     local remainder = amount % people
 
-    local msg = string.format("Splitting <msGold>%s<msSilver> gold among <msGold>%d<msSilver> people results in <msGold>%s<msSilver> gold each.", 
+    local msg = string.format("Splitting <geGold>%s<geSilver> gold among <geGold>%d<geSilver> people results in <geGold>%s<geSilver> gold each.", 
         goldeneyes.format(amount), people, goldeneyes.format(share))
 
     -- Let us know if there's leftover gold that couldn't be divided evenly
     if remainder > 0 then
-        msg = msg .. string.format(" <msSilver>(Remainder: <orange>%s<msSilver>)", goldeneyes.format(remainder))
+        msg = msg .. string.format(" <geSilver>(Remainder: <orange>%s<geSilver>)", goldeneyes.format(remainder))
     end
 
     goldeneyes.echo(msg)
@@ -643,7 +643,7 @@ end
 
 goldeneyes.check_reward = function()
     if not goldeneyes.baseline.set then
-        goldeneyes.echo("<yellow>Warning:<msSilver> No baseline established yet. Establishing now. Type <msGold>goldeneyes check<msSilver> after your next reward.")
+        goldeneyes.echo("<yellow>Warning:<geSilver> No baseline established yet. Establishing now. Type <geGold>goldeneyes check<geSilver> after your next reward.")
         goldeneyes.set_baseline()
         return
     end
@@ -675,7 +675,7 @@ goldeneyes.process_gold_capture = function(hand, bank)
         local hidden_profit = wealth_change + goldeneyes.expenses - tracked_change
         
         if hidden_profit > 0 then
-            goldeneyes.echo("<orange>Hidden Reward Detected!<msSilver> You gained <msGold>" .. goldeneyes.format(hidden_profit) .. "<msSilver> gold.")
+            goldeneyes.echo("<orange>Hidden Reward Detected!<geSilver> You gained <geGold>" .. goldeneyes.format(hidden_profit) .. "<geSilver> gold.")
             goldeneyes.plus(hidden_profit)
         elseif hidden_profit < 0 then
              goldeneyes.echo("Math check negative (" .. goldeneyes.format(hidden_profit) .. "). Did you spend gold we missed?")
@@ -708,7 +708,7 @@ function goldeneyes_login_check()
   end
 
   if goldeneyes.pickup then
-      goldeneyes.echo("Auto-pickup is <msGold>ENABLED<msSilver>.")
+      goldeneyes.echo("Auto-pickup is <geGold>ENABLED<geSilver>.")
   end
 
   -- Login Prompt for Stale Ledgers
@@ -716,11 +716,11 @@ function goldeneyes_login_check()
   if not goldeneyes.login_prompted and goldeneyes.total > 0 then
       goldeneyes.login_prompted = true
       
-      cecho("\n<msSilver>[<msGold>Goldeneyes<msSilver>]: <yellow>Welcome back! You have an active hunting ledger with " .. goldeneyes.format(goldeneyes.total) .. " gold.<reset>\n")
+      cecho("\n<geSilver>[<geGold>Goldeneyes<geSilver>]: <yellow>Welcome back! You have an active hunting ledger with " .. goldeneyes.format(goldeneyes.total) .. " gold.<reset>\n")
       cecho("       ")
       -- We bypass the double-tap reset here and call confirm_reset() directly for speed
       cechoLink("<red>[Start Fresh]", "goldeneyes.confirm_reset()", "Wipe all data for a new hunt", true)
-      cecho(" <msSilver>| ")
+      cecho(" <geSilver>| ")
       cechoLink("<green>[Keep Data]", "goldeneyes.echo('Ledger preserved. Type \\'gold\\' to view.')", "Resume previous hunt", true)
       cecho("\n")
   end
@@ -784,23 +784,23 @@ goldeneyes.create_triggers = function()
             goldeneyes.plus(amount)
             if goldeneyes.ledger[name_key] then
                 goldeneyes.ledger[name_key] = goldeneyes.ledger[name_key] - amount
-                cecho(string.format("\n<msSilver>[<msGold>Goldeneyes<msSilver>]: %s paid off %s (Remaining: %s).", name, goldeneyes.format(amount), goldeneyes.format(goldeneyes.ledger[name_key])))
+                cecho(string.format("\n<geSilver>[<geGold>Goldeneyes<geSilver>]: %s paid off %s (Remaining: %s).", name, goldeneyes.format(amount), goldeneyes.format(goldeneyes.ledger[name_key])))
                 if goldeneyes.ledger[name_key] <= 0 then
                     goldeneyes.ledger[name_key] = nil
-                    cecho(string.format("\n<msSilver>[<msGold>Goldeneyes<msSilver>]: %s has settled their debt.", name))
+                    cecho(string.format("\n<geSilver>[<geGold>Goldeneyes<geSilver>]: %s has settled their debt.", name))
                 end
             else
-                cecho(string.format("\n<msSilver>[<msGold>Goldeneyes<msSilver>]: Accepted %s gold from %s (No prior debt).", goldeneyes.format(amount), name))
+                cecho(string.format("\n<geSilver>[<geGold>Goldeneyes<geSilver>]: Accepted %s gold from %s (No prior debt).", goldeneyes.format(amount), name))
             end
         else
             -- They are NOT tracked. Hold the gold and ask!
             goldeneyes.pending_gold = goldeneyes.pending_gold or {}
             goldeneyes.pending_gold[name_key] = (goldeneyes.pending_gold[name_key] or 0) + amount
             
-            cecho(string.format("\n<msSilver>[<msGold>Goldeneyes<msSilver>]: <yellow>Received %s gold from an UNTRACKED person: %s.<reset>\n", goldeneyes.format(amount), name))
+            cecho(string.format("\n<geSilver>[<geGold>Goldeneyes<geSilver>]: <yellow>Received %s gold from an UNTRACKED person: %s.<reset>\n", goldeneyes.format(amount), name))
             cecho("       ")
             cechoLink("<green>[Add to Tracker & Pot]", 'goldeneyes.accept_pending("' .. name .. '")', "Track " .. name .. " and add " .. goldeneyes.pending_gold[name_key] .. " to pot", true)
-            cecho(" <msSilver>| ")
+            cecho(" <geSilver>| ")
             cechoLink("<red>[Ignore]", 'goldeneyes.ignore_pending("' .. name .. '")', "Ignore this gold", true)
             cecho("\n")
         end
@@ -815,7 +815,7 @@ goldeneyes.create_triggers = function()
 
         if goldeneyes.names[name_key] then
             goldeneyes.ledger[name_key] = (goldeneyes.ledger[name_key] or 0) + amount
-            cecho(string.format("\n<msSilver>[<msGold>Goldeneyes<msSilver>]: <orange>ALERT<msSilver>: <msGold>%s<msSilver> picked up <orange>%s<msSilver> gold!", name, goldeneyes.format(amount)))
+            cecho(string.format("\n<geSilver>[<geGold>Goldeneyes<geSilver>]: <orange>ALERT<geSilver>: <geGold>%s<geSilver> picked up <orange>%s<geSilver> gold!", name, goldeneyes.format(amount)))
         end
     ]]))
 
@@ -850,9 +850,9 @@ goldeneyes.create_triggers = function()
     table.insert(goldeneyes.trigger_ids, tempRegexTrigger("^You have joined .+'s party\\.$", 
     [[
         if goldeneyes.party_alerts then
-            cecho("\n<msSilver>[<msGold>Goldeneyes<msSilver>]: You joined a party. ")
+            cecho("\n<geSilver>[<geGold>Goldeneyes<geSilver>]: You joined a party. ")
             cechoLink("<green>[Add Party Members]", "goldeneyes.add_party()", "Auto-add current party to ledger", true)
-            cecho(" <msSilver>| ")
+            cecho(" <geSilver>| ")
             -- Appends to command line so you can easily type the name before hitting enter
             cechoLink("<yellow>[Set Accountant]", 'clearCmdLine() appendCmdLine("goldeneyes accountant ")', "Designate the collector", true)
             cecho("\n")
@@ -863,7 +863,7 @@ goldeneyes.create_triggers = function()
     table.insert(goldeneyes.trigger_ids, tempRegexTrigger("^You have left your party\\.$", 
     [[
         if goldeneyes.party_alerts then
-            cecho("\n<msSilver>[<msGold>Goldeneyes<msSilver>]: You left the party. ")
+            cecho("\n<geSilver>[<geGold>Goldeneyes<geSilver>]: You left the party. ")
             cechoLink("<red>[Reset Tracker]", "goldeneyes.reset()", "Wipe all current ledger data", true)
             cecho("\n")
         end
@@ -874,7 +874,7 @@ goldeneyes.create_triggers = function()
     [[
         if goldeneyes.party_alerts then
             local name = matches[2]
-            cecho("\n<msSilver>[<msGold>Goldeneyes<msSilver>]: <msGold>" .. name .. " <msSilver>joined the party. ")
+            cecho("\n<geSilver>[<geGold>Goldeneyes<geSilver>]: <geGold>" .. name .. " <geSilver>joined the party. ")
             cechoLink("<green>[Add to Tracker]", 'goldeneyes.add("' .. name .. '")', "Add " .. name .. " to the gold split", true)
             cecho("\n")
         end
@@ -887,7 +887,7 @@ goldeneyes.create_triggers = function()
         local name = matches[2]
         -- We only prompt if they are actually in our ledger!
         if goldeneyes.party_alerts and goldeneyes.names[name:lower()] then
-            cecho("\n<msSilver>[<msGold>Goldeneyes<msSilver>]: <msGold>" .. name .. " <msSilver>left the party. ")
+            cecho("\n<geSilver>[<geGold>Goldeneyes<geSilver>]: <geGold>" .. name .. " <geSilver>left the party. ")
             cechoLink("<orange>[Remove from Tracker]", 'goldeneyes.remove("' .. name .. '")', "Remove " .. name .. " from the gold split", true)
             cecho("\n")
         end
@@ -905,7 +905,7 @@ goldeneyes.create_triggers = function()
         elseif cmd == "on" or cmd == "off" then goldeneyes.toggle(cmd)
         elseif cmd == "autoloot" then goldeneyes.togglepickup(args[2] or "")
         elseif cmd == "container" then 
-            if args[2] then goldeneyes.setcontainer(args[2]) else cecho("\n<msSilver>Usage: <msGold>goldeneyes container <name>") end
+            if args[2] then goldeneyes.setcontainer(args[2]) else cecho("\n<geSilver>Usage: <geGold>goldeneyes container <name>") end
         elseif cmd == "stash" then goldeneyes.stash()
         elseif cmd == "add" then if args[2] then goldeneyes.add(args[2]) end
         elseif cmd == "party" then goldeneyes.add_party()
@@ -920,14 +920,14 @@ goldeneyes.create_triggers = function()
         elseif cmd == "check" then goldeneyes.check_reward()
         elseif cmd == "report" then goldeneyes.announce(args[2])
         elseif cmd == "accountant" then 
-            if args[2] then goldeneyes.set_accountant(args[2]) else cecho("\n<msSilver>Current Accountant: <msGold>" .. goldeneyes.accountant) end
+            if args[2] then goldeneyes.set_accountant(args[2]) else cecho("\n<geSilver>Current Accountant: <geGold>" .. goldeneyes.accountant) end
         elseif cmd == "loot" then 
-            local amt = tonumber(args[2]); if amt then goldeneyes.handle_loot(amt) else cecho("\n<msSilver>Usage: <msGold>goldeneyes loot <amount>") end
+            local amt = tonumber(args[2]); if amt then goldeneyes.handle_loot(amt) else cecho("\n<geSilver>Usage: <geGold>goldeneyes loot <amount>") end
         elseif cmd == "autohandover" then goldeneyes.toggle_handover(args[2] or "")
         elseif cmd == "strategy" then goldeneyes.set_strategy(args[2])
         elseif cmd == "alerts" then goldeneyes.togglealerts(args[2] or "")
         elseif cmd == "calc" then goldeneyes.calc(args[2], args[3])
-        else cecho("\n<msSilver>Unknown command. Try <msGold>goldeneyes help<msSilver>.") end
+        else cecho("\n<geSilver>Unknown command. Try <geGold>goldeneyes help<geSilver>.") end
     ]]))
 
     goldeneyes.echo("Dynamic triggers and aliases loaded.")
