@@ -102,7 +102,8 @@ goldeneyes.save = function()
         split_strategy = goldeneyes.split_strategy,
         party_alerts = goldeneyes.party_alerts,
         accountant = goldeneyes.accountant,
-        starttime = goldeneyes.starttime
+        starttime = goldeneyes.starttime,
+        container = goldeneyes.container -- Added container to the save state
     }
     table.save(save_path, data)
 end
@@ -129,6 +130,7 @@ goldeneyes.load = function()
         if data.party_alerts ~= nil then goldeneyes.party_alerts = data.party_alerts end
         goldeneyes.accountant = data.accountant or goldeneyes.accountant
         goldeneyes.starttime = data.starttime or goldeneyes.starttime
+        goldeneyes.container = data.container or goldeneyes.container -- Load the container
     end
 end
 
@@ -501,14 +503,15 @@ goldeneyes.help = function ()
     cecho ("  <geGold>goldeneyes <on|off>             <geSilver>- Turn tracker on/off.\n")
     cecho ("  <geGold>goldeneyes reset                <geSilver>- Reset all totals (enter twice to confirm).\n")
     cecho ("  <geGold>goldeneyes report [channel]     <geSilver>- Announce totals (Channels: party, intrepid, say).\n")
-    cecho ("\n<geGold>GROUP & ACCOUNTING\n")
-    cecho ("  <geGold>goldeneyes party                <geSilver>- Auto-add your current party members.\n")
+    cecho ("\n<geGold>GROUP\n")
     cecho ("  <geGold>goldeneyes strategy <even|fair> <geSilver>- Set split method (Default: even).\n")
-    cecho ("  <geGold>goldeneyes accountant <name>    <geSilver>- Designate the collector (Default: You).\n")
-    cecho ("  <geGold>goldeneyes autohandover <on|off><geSilver>- Automatically give loot to Accountant.\n")
-    cecho ("  <geGold>goldeneyes alerts <on|off>      <geSilver>- Toggle clickable party join/leave prompts.\n")
+    cecho ("  <geGold>goldeneyes party                <geSilver>- Auto-add your current party members.\n")
     cecho ("  <geGold>goldeneyes add <name>           <geSilver>- Add a person to the split list.\n")
     cecho ("  <geGold>goldeneyes remove <name>        <geSilver>- Remove a person from the list.\n")
+    cecho ("\n<geGold>ACCOUNTING\n")
+    cecho ("  <geGold>goldeneyes alerts <on|off>      <geSilver>- Toggle clickable party join/leave prompts.\n")
+    cecho ("  <geGold>goldeneyes accountant <name>    <geSilver>- Designate the collector (Default: You).\n")
+    cecho ("  <geGold>goldeneyes autohandover <on|off><geSilver>- Automatically give loot to collector.\n")
     cecho ("\n<geGold>LOOT & AUTOMATION\n")
     cecho ("  <geGold>goldeneyes autoloot <on|off>    <geSilver>- Toggle auto-looting.\n")
     cecho ("  <geGold>goldeneyes container <name>     <geSilver>- Set gold container (e.g., 'pack').\n")
@@ -558,6 +561,7 @@ end
 goldeneyes.setcontainer = function(name)
     goldeneyes.container = name
     goldeneyes.echo("Loot container set to: <geGold>" .. name)
+    goldeneyes.save() -- Instantly saves the new container choice
 end
 
 goldeneyes.stash = function()
@@ -725,6 +729,13 @@ function goldeneyes_login_check()
       cecho("\n")
   end
 end
+
+-- Save data when Mudlet closes or disconnects from Achaea
+if goldeneyes.save_exit_handler then killAnonymousEventHandler(goldeneyes.save_exit_handler) end
+goldeneyes.save_exit_handler = registerAnonymousEventHandler("sysExitEvent", "goldeneyes.save")
+
+if goldeneyes.save_dc_handler then killAnonymousEventHandler(goldeneyes.save_dc_handler) end
+goldeneyes.save_dc_handler = registerAnonymousEventHandler("sysDisconnectionEvent", "goldeneyes.save")
 
 -- =========================================================== --
 --               DYNAMIC TRIGGERS & ALIASES                    --
