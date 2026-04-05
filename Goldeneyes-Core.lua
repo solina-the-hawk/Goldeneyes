@@ -2,6 +2,7 @@
 -- GOLDENEYES: Gold Tracking & Distribution Utility
 -- A robust Mudlet ledger for Achaean hunting parties.
 -- Author: Solina (https://github.com/solina-the-hawk/goldeneyes/)
+-- Version: 1.0.0
 ---------------------------------------------------------------------------
 
 goldeneyes = goldeneyes or {}
