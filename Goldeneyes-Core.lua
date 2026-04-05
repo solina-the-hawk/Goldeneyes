@@ -851,29 +851,42 @@ goldeneyes.create_triggers = function()
         end
     ]]))
 
-    -- Trigger: Capture Gold (All Sources for math checks)
-    table.insert(goldeneyes.trigger_ids, tempRegexTrigger("^You have [%d,]+ gold sovereign", 
+    -- 8. Capture Gold (Start of message)
+    table.insert(goldeneyes.trigger_ids, tempRegexTrigger("^You have [%d,]+ gold sovereign.*", 
     [[
         if goldeneyes.capture_mode then
-            local line = matches[1]
-            local total_hand = 0
-            local total_bank = 0
+            -- Start a buffer with the first line
+            goldeneyes.gold_buffer = matches[1]
 
-            -- Match the number, and capture all text up until the NEXT number starts
-            for amount_str, context in string.gmatch(line, "([%d,]+)%s+gold sovereigns? in([^0-9,]+)") do
-                local clean_amt = tonumber((string.gsub(amount_str, ",", "")))
-                
-                if clean_amt then
-                    -- Fuzzy match the context string for the location keywords
-                    if string.match(context, "inventory") or string.match(context, "container") then
-                        total_hand = total_hand + clean_amt
-                    elseif string.match(context, "bank") then
-                        total_bank = total_bank + clean_amt
+            -- Set a tiny 0.2 second delay to wait for any trailing lines to arrive
+            if goldeneyes.gold_capture_timer then killTimer(goldeneyes.gold_capture_timer) end
+            goldeneyes.gold_capture_timer = tempTimer(0.2, function()
+                local total_hand = 0
+                local total_bank = 0
+
+                for amount_str, context in string.gmatch(goldeneyes.gold_buffer, "([%d,]+)%s+gold sovereigns? in([^0-9,]+)") do
+                    local clean_amt = tonumber((string.gsub(amount_str, ",", "")))
+                    if clean_amt then
+                        if string.match(context, "inventory") or string.match(context, "container") then
+                            total_hand = total_hand + clean_amt
+                        elseif string.match(context, "bank") then
+                            total_bank = total_bank + clean_amt
+                        end
                     end
                 end
-            end
-            
-            goldeneyes.process_gold_capture(total_hand, total_bank)
+                
+                goldeneyes.process_gold_capture(total_hand, total_bank)
+                goldeneyes.gold_buffer = nil
+            end)
+        end
+    ]]))
+
+    -- 8b. Capture trailing wrapped lines (The Spillover)
+    table.insert(goldeneyes.trigger_ids, tempRegexTrigger("^gold sovereigns? in.*", 
+    [[
+        if goldeneyes.capture_mode and goldeneyes.gold_buffer then
+            -- Append the broken line to our buffer
+            goldeneyes.gold_buffer = goldeneyes.gold_buffer .. " " .. matches[1]
         end
     ]]))
     
