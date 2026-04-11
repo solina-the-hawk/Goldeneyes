@@ -372,23 +372,29 @@ end
 goldeneyes.handle_loot = function(amt)
     if not goldeneyes.enabled then return end
     local my_name = (gmcp and gmcp.Char and gmcp.Char.Name and gmcp.Char.Name.name) or "Unknown"
+    local my_name_lower = my_name:lower()
     local acc = goldeneyes.accountant or my_name
     local cont = goldeneyes.container or "pack"
 
-    if acc == my_name then
-        goldeneyes.plus(amt, true)
+    -- Always add to our local total so the display is useful for everyone!
+    goldeneyes.plus(amt, true)
+
+    if acc:lower() == my_name_lower then
         goldeneyes.echo("Gold added to ledger. New total is <geGold>" .. goldeneyes.format(goldeneyes.total) .. "<geSilver> gold.")
         
         if cont:lower() ~= "none" and cont:lower() ~= "inventory" then
             send("queue add eqbal put " .. amt .. " gold in " .. cont, false)
         end
     else
+        -- We are NOT the accountant. Add to our local debt until we successfully hand it over.
+        goldeneyes.ledger[my_name_lower] = (goldeneyes.ledger[my_name_lower] or 0) + amt
+
         if goldeneyes.autohandover then
             send("queue add eqbal give " .. amt .. " gold to " .. acc)
-            goldeneyes.echo("Looted <geGold>"..goldeneyes.format(amt).."<geSilver>. Handing over to <geGold>"..acc)
+            goldeneyes.echo("Looted <geGold>"..goldeneyes.format(amt).."<geSilver>. Attempting to hand over to <geGold>"..acc)
         else
             send("pt I picked up " .. goldeneyes.format(amt) .. " gold.")
-            goldeneyes.echo("Looted <geGold>"..goldeneyes.format(amt).."<geSilver>. Reported to party.")
+            goldeneyes.echo("Looted <geGold>"..goldeneyes.format(amt).."<geSilver>. Kept locally (Added to Debt).")
             if cont:lower() ~= "none" and cont:lower() ~= "inventory" then
                 send("queue add eqbal put " .. amt .. " gold in " .. cont, false)
             end
@@ -793,7 +799,40 @@ goldeneyes.create_triggers = function()
     -- Trigger: Shop Purchases & Bribes (Expenses)
     table.insert(goldeneyes.trigger_ids, tempRegexTrigger("^You pay ([\\d,]+) gold sovereigns\\.$", [[ goldeneyes.add_expense(tonumber((matches[2]:gsub(",", "")))) ]]))
     table.insert(goldeneyes.trigger_ids, tempRegexTrigger("^You buy .* for ([\\d,]+) gold\\.$", [[ goldeneyes.add_expense(tonumber((matches[2]:gsub(",", "")))) ]]))
-    table.insert(goldeneyes.trigger_ids, tempRegexTrigger("^You give ([\\d,]+) gold to .*$", [[ -- Expense ignored unless explicitly tracked ]]))
+    
+    -- Trigger: Gold Given Away (Handover resolution)
+    table.insert(goldeneyes.trigger_ids, tempRegexTrigger("^You give ([\\d,]+) gold to (\\w+)", 
+    [[ 
+        local amount = tonumber((matches[2]:gsub(",", "")))
+        local target = matches[3]:lower()
+        local my_name = (gmcp and gmcp.Char and gmcp.Char.Name and gmcp.Char.Name.name:lower()) or "unknown"
+        
+        -- If we successfully gave gold to the accountant, clear it from our local debt
+        if goldeneyes.accountant and target == goldeneyes.accountant:lower() then
+            if goldeneyes.ledger[my_name] then
+                goldeneyes.ledger[my_name] = goldeneyes.ledger[my_name] - amount
+                if goldeneyes.ledger[my_name] <= 0 then goldeneyes.ledger[my_name] = nil end
+            end
+            goldeneyes.echo("Successfully handed over <geGold>" .. goldeneyes.format(amount) .. "<geSilver> to accountant.")
+        end
+    ]]))
+
+    -- Trigger: Handover Failure (Accountant left room/logged off)
+    table.insert(goldeneyes.trigger_ids, tempRegexTrigger("^(?:Ahh, I am truly sorry, but I do not see anyone by that name here\\.|You cannot see that being here\\.|You cannot find anyone by that name here\\.)$", 
+    [[
+        local my_name = (gmcp and gmcp.Char and gmcp.Char.Name and gmcp.Char.Name.name:lower()) or "unknown"
+        local acc = goldeneyes.accountant and goldeneyes.accountant:lower() or my_name
+        
+        -- If we have a local debt and we aren't the accountant, a failure message means our handover missed.
+        if goldeneyes.autohandover and acc ~= my_name and goldeneyes.ledger[my_name] and goldeneyes.ledger[my_name] > 0 then
+            goldeneyes.echo("<red>Handover failed! <geSilver>The accountant isn't here. Stashing gold safely.")
+            local cont = goldeneyes.container or "pack"
+            if cont:lower() ~= "none" and cont:lower() ~= "inventory" then
+                send("queue add eqbal put gold in " .. cont, false)
+            end
+            -- Note: We intentionally leave the debt in our ledger so the UI reminds us we have it!
+        end
+    ]]))
 
     -- Trigger: Gold Picked Up (You)
     table.insert(goldeneyes.trigger_ids, tempRegexTrigger("^You (?:pick|scoop) up ([\\d,]+) gold", 
@@ -854,11 +893,11 @@ goldeneyes.create_triggers = function()
         local name_key = name:lower()
 
         if goldeneyes.names[name_key] then
+            goldeneyes.plus(amount, true) -- Silently add to local total so UI matches reality
             goldeneyes.ledger[name_key] = (goldeneyes.ledger[name_key] or 0) + amount
             cecho(string.format("\n<geSilver>[<geGold>Goldeneyes<geSilver>]: <orange>ALERT<geSilver>: <geGold>%s<geSilver> picked up <orange>%s<geSilver> gold!", name, goldeneyes.format(amount)))
         end
     ]]))
-
     -- 8. Capture Gold (Start of message)
     table.insert(goldeneyes.trigger_ids, tempRegexTrigger("^You have [%d,]+ gold sovereign.*", 
     [[
