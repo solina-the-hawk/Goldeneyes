@@ -668,6 +668,7 @@ goldeneyes.distribute = function(channel)
     channel = channel and channel:lower() or "party"
     local cmd = "pt"
     local message = ""
+    local silent = (channel == "none")
     
     if goldeneyes.split_strategy == "even" then
         local single_share = 0
@@ -696,7 +697,9 @@ goldeneyes.distribute = function(channel)
         end
     end
     
-    send(cmd .. " " .. message)
+    if not silent then
+        send(cmd .. " " .. message)
+    end
 
     local delay = 0.5
     for k, v in pairs(shares) do
@@ -800,7 +803,12 @@ goldeneyes.create_triggers = function()
     ]]))
 
     -- Trigger: Gold Dropped (Grab It)
-    local grab_script = [[ if goldeneyes.enabled and goldeneyes.pickup then send("queue add eqbal get gold", false) end ]]
+    local grab_script = [[ 
+        if goldeneyes.enabled and goldeneyes.pickup then 
+            goldeneyes.echo("Scooping loose gold.")
+            send("queue add eqbal get gold", false) 
+        end 
+    ]]
     local grab_regex = "(?:^A.*sovereigns? spills? from the corpse|A pile of golden sovereigns twinkles and gleams\\.|There is.*pile of golden sovereigns here\\.|pile of .*sovereigns?)"
     table.insert(goldeneyes.trigger_ids, tempRegexTrigger(grab_regex, grab_script))
 
