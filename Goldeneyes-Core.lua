@@ -28,7 +28,7 @@ goldeneyes.config = goldeneyes.config or {
     -- display (using RGB values).
     colors = {
         goldeneyesGold   = {255, 215, 0},
-        goldeneyesSilver = {229, 228, 226},
+        goldeneyesSilver = {248, 248, 255},
         goldeneyesCopper = {184, 115, 51},
     }
 }
@@ -702,24 +702,26 @@ function goldeneyes.confirm_reset()
 end
 
 -- Final payout command
--- Final payout command
 function goldeneyes.distribute(channel)
     local cont = goldeneyes.config.container or "pack"
     local shares = goldeneyes.get_shares()
     local members = goldeneyes.count(goldeneyes.names)
     local my_name = gmcp.Char.Name.name:lower()
     
-    -- Calculate the exact amount of gold needed for others (excluding yourself)
-    local total_payout = 0
+    -- Calculate the exact total of all shares (plus org tax) to withdraw from the container
+    local total_withdraw = 0
     for k, v in pairs(shares) do
-        if k ~= my_name then
-            total_payout = total_payout + math.floor(v)
-        end
+        total_withdraw = total_withdraw + math.floor(v)
     end
     
-    -- Only get the exact amount we need to hand out
-    if cont:lower() ~= "none" and cont:lower() ~= "inventory" and total_payout > 0 then
-        send("queue add eqbal get " .. total_payout .. " gold from " .. cont)
+    -- Ensure we also pull out the org tax if one is set
+    if goldeneyes.org and goldeneyes.org.name then
+        total_withdraw = total_withdraw + math.floor(goldeneyes.org.gold)
+    end
+    
+    -- Withdraw the full hunt yield so your cut and org tax land in your inventory
+    if cont:lower() ~= "none" and cont:lower() ~= "inventory" and total_withdraw > 0 then
+        send("queue add eqbal get " .. total_withdraw .. " gold from " .. cont)
     end
     
     channel = channel and channel:lower() or "party"
