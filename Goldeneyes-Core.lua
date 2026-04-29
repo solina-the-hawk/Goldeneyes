@@ -1,10 +1,9 @@
----------------------------------------------------------------------------
+-- =========================================================================
 -- GOLDENEYES: Gold Tracking & Distribution Utility
 -- A robust Mudlet ledger for Achaean hunting parties.
 -- Author: Solina (https://github.com/solina-the-hawk/goldeneyes/)
--- Version: 1.0.0
----------------------------------------------------------------------------
-
+-- Version: 1.1.0
+-- =========================================================================
 goldeneyes = goldeneyes or {}
 goldeneyes.settings = {}
 
@@ -288,24 +287,51 @@ goldeneyes.unpause = function(name)
     goldeneyes.showprompt()
 end
 
--- Trigger an in-game party scan and auto-add members
-goldeneyes.add_party = function()
-    goldeneyes.echo("Scanning party members...")
+-- Trigger an in-game scan for Party, Group, and Intrepid members
+goldeneyes.scan_group = function()
+    goldeneyes.echo("Scanning party, group, and intrepid members...")
+    -- Fire all three commands; the game will just ignore/error the ones not in use!
     send("party members", false)
+    send("group", false)
+    send("intrepid", false)
 
-    if goldeneyes.party_trigger then killTrigger(goldeneyes.party_trigger) end
-    goldeneyes.party_trigger = tempRegexTrigger("^\\s+([A-Z][a-z]+)", function()
+    goldeneyes.scan_triggers = goldeneyes.scan_triggers or {}
+
+    -- 1. Catch standard Party members and indented Group members
+    table.insert(goldeneyes.scan_triggers, tempRegexTrigger("^\\s+([A-Z][a-z]+)", function()
         local name = matches[2]
-        if name ~= "Party" and name ~= "The" then goldeneyes.add(name) end
-    end)
+        if name ~= "Party" and name ~= "The" and name ~= "Your" then goldeneyes.add(name) end
+    end))
 
-    tempTimer(1.5, function()
-        if goldeneyes.party_trigger then
-            killTrigger(goldeneyes.party_trigger)
-            goldeneyes.party_trigger = nil
-            goldeneyes.echo("Party scan complete.")
-            goldeneyes.showprompt()
+    -- 2. Catch single group followers or leaders
+    table.insert(goldeneyes.scan_triggers, tempRegexTrigger("^You are following ([A-Z][a-z]+)\\.", function()
+        goldeneyes.add(matches[2])
+    end))
+    table.insert(goldeneyes.scan_triggers, tempRegexTrigger("^([A-Z][a-z]+) is following you\\.", function()
+        goldeneyes.add(matches[2])
+    end))
+
+    -- 3. Catch Intrepid Leader
+    table.insert(goldeneyes.scan_triggers, tempRegexTrigger("^Leader\\s*:\\s*([A-Z][a-z]+)", function()
+        goldeneyes.add(matches[2])
+    end))
+
+    -- 4. Catch Intrepid Members (comma separated list)
+    table.insert(goldeneyes.scan_triggers, tempRegexTrigger("^Members\\s*:\\s*(.*)", function()
+        local members_str = matches[2]
+        for name in string.gmatch(members_str, "([A-Z][a-z]+)") do
+            if name ~= "And" and name ~= "You" then goldeneyes.add(name) end
         end
+    end))
+
+    -- Clean up triggers after 1.5 seconds
+    tempTimer(1.5, function()
+        if goldeneyes.scan_triggers then
+            for _, id in ipairs(goldeneyes.scan_triggers) do killTrigger(id) end
+            goldeneyes.scan_triggers = {}
+        end
+        goldeneyes.echo("Group scan complete.")
+        goldeneyes.showprompt()
     end)
 end
 
@@ -544,7 +570,7 @@ goldeneyes.help = function()
     cecho("  <geGold>goldeneyes report [channel]     <geSilver>- Announce totals (Channels: party, intrepid, say).\n")
     cecho("\n<geGold>GROUP\n")
     cecho("  <geGold>goldeneyes strategy <even|fair> <geSilver>- Set split method (Default: even).\n")
-    cecho("  <geGold>goldeneyes party                <geSilver>- Auto-add your current party members.\n")
+    cecho("  <geGold>goldeneyes group                <geSilver>- Auto-add party, group, and intrepid members.\n")
     cecho("  <geGold>goldeneyes add <name>           <geSilver>- Add a person to the split list.\n")
     cecho("  <geGold>goldeneyes remove <name>        <geSilver>- Remove a person from the list.\n")
     cecho("  <geGold>goldeneyes pause <name>         <geSilver>- Pause tracking for a member.\n")
@@ -942,7 +968,7 @@ goldeneyes.create_triggers = function()
     [[
         if goldeneyes.party_alerts then
             cecho("\n<geSilver>[<geGold>Goldeneyes<geSilver>]: You joined a party. ")
-            cechoLink("<green>[Add Party Members]", "goldeneyes.add_party()", "Auto-add current party to ledger", true)
+            cechoLink("<green>[Scan Group]", "goldeneyes.scan_group()", "Auto-add party/group to ledger", true)
             cecho(" <geSilver>| ")
             cechoLink("<yellow>[Set Accountant]", 'clearCmdLine() appendCmdLine("goldeneyes accountant ")', "Designate the collector", true)
             cecho("\n")
@@ -993,7 +1019,7 @@ goldeneyes.create_triggers = function()
             if args[2] then goldeneyes.setcontainer(args[2]) else cecho("\n<geSilver>Usage: <geGold>goldeneyes container <name>") end
         elseif cmd == "stash" then goldeneyes.stash()
         elseif cmd == "add" then if args[2] then goldeneyes.add(args[2]) end
-        elseif cmd == "party" then goldeneyes.add_party()
+        elseif cmd == "party" or cmd == "group" then goldeneyes.scan_group()
         elseif cmd == "remove" then if args[2] then goldeneyes.remove(args[2]) end
         elseif cmd == "plus" then local amt = tonumber(args[2]); if amt then goldeneyes.plus(amt) end
         elseif cmd == "minus" then local amt = tonumber(args[2]); if amt then goldeneyes.minus(amt) end
