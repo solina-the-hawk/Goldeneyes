@@ -1,0 +1,9 @@
+Goldeneyes: Gold Tracking & Distribution Helper (v1.1.0)
+
+Goldeneyes is a robust Mudlet ledger designed for Achaean hunting parties. It automates gold tracking, party distribution, auto-looting, and math checks for hidden quest rewards.
+
+Features include automated party tracking with interactive click-to-add prompts, multiple gold split strategies, automatic data saving to protect against client crashes, auto-looting to designated containers and auto-handover to party accountants.
+
+Once installed, type "goldeneyes help" or "gold help" in the command line to view the full list of controls and settings.
+
+To view your current ledger, simply type "goldeneyes" or "gold".
