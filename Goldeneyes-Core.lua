@@ -28,7 +28,7 @@ goldeneyes.config = goldeneyes.config or {
     -- display (using RGB values).
     colors = {
         goldeneyesGold   = {255, 215, 0},
-        goldeneyesSilver = {192, 192, 192},
+        goldeneyesSilver = {229, 228, 226},
         goldeneyesCopper = {184, 115, 51},
     }
 }
@@ -108,9 +108,16 @@ function goldeneyes.save()
     if not lfs.attributes(baseDir) then lfs.mkdir(baseDir) end
     
     local filepath = baseDir .. "/Goldeneyes_Profile.json"
+    
+    -- Create a copy of the config table that EXCLUDES colors
+    local export_config = {}
+    for k, v in pairs(goldeneyes.config) do
+        if k ~= "colors" then export_config[k] = v end
+    end
+
     local data = {
         enabled = goldeneyes.enabled,
-        config = goldeneyes.config, 
+        config = export_config, -- Save the filtered config
         names = goldeneyes.names,
         paused = goldeneyes.paused,
         total = goldeneyes.total,
@@ -136,8 +143,8 @@ function goldeneyes.load()
     local filepath = getMudletHomeDir() .. "/Goldeneyes/Goldeneyes_Profile.json"
     local file = io.open(filepath, "r")
     
-    if not file then 
-        cecho("\n<red>[Goldeneyes Error]:<reset> No Goldeneyes_Profile.json found to load! Type <yellow>goldeneyes profile save<reset> to create one.\n")
+    if not file then
+        goldeneyes.echo("<red>(Error)<reset>: No Goldeneyes_Profile.json found to load! Type <yellow>goldeneyes profile save<reset> to create one.")
         return 
     end
 
@@ -147,7 +154,7 @@ function goldeneyes.load()
     
     local success, data = pcall(yajl.to_value, contents)
     if not success or type(data) ~= "table" then
-        cecho("\n<red>[Goldeneyes Error]:<reset> Your Goldeneyes_Profile.json has a formatting error!\n")
+        goldeneyes.echo("<red>(Error)<reset>: Your Goldeneyes_Profile.json has a formatting error!")
         return
     end
         
@@ -166,13 +173,15 @@ function goldeneyes.load()
     -- Safely overwrite config if saved values exist
     if data.config then
         for k, v in pairs(data.config) do
-            goldeneyes.config[k] = v
+            if k ~= "colors" then -- Ignore saved colors so the Lua file is always the master!
+                goldeneyes.config[k] = v
+            end
         end
     end
 end
 
 -- =========================================================================
--- SLedger & Math Logic
+-- Ledger & Math Logic
 -- Does the mathematics for calculating shares, adding amounts and updating totals,
 -- etc. This is the core of the package and where most of the "magic" happens.
 -- =========================================================================
@@ -248,7 +257,7 @@ function goldeneyes.calc(amount, people)
     people = tonumber(people)
 
     if not amount or not people or people <= 0 then
-        cecho("\n<goldeneyesSilver>Usage: <goldeneyesGold>goldeneyes calc <amount> <number of people>\n")
+        goldeneyes.echo("<goldeneyesSilver>Usage: <goldeneyesGold>goldeneyes calc <amount> <number of people>")
         return
     end
 
@@ -542,48 +551,48 @@ end
 -- =========================================================================
 
 -- Master display layout
+-- Master display layout
 function goldeneyes.display()
-    local status = goldeneyes.enabled and "<goldeneyesGold>enabled" or "<goldeneyesSilver>disabled"
+    local status = goldeneyes.enabled and "<green>ON<goldeneyesSilver>" or "<red>OFF<goldeneyesSilver>"
     local current_name = (gmcp and gmcp.Char and gmcp.Char.Name and gmcp.Char.Name.name) or "Unknown"
     local accountant = goldeneyes.accountant or current_name
-    local role = (accountant:lower() == current_name:lower()) and "<green>(Me)" or "<yellow>(" .. accountant .. ")"
-    local strat_text = (goldeneyes.config.split_strategy == "even") and "<green>Even" or "<yellow>Fair"
+    local role = (accountant:lower() == current_name:lower()) and "<green>Me<goldeneyesSilver>" or ("<goldeneyesGold>" .. accountant:title() .. "<goldeneyesSilver>")
+    local strat_text = (goldeneyes.config.split_strategy == "even") and "<green>Even<goldeneyesSilver>" or "<yellow>Fair<goldeneyesSilver>"
     local cont = goldeneyes.config.container or "pack"
 
     local elapsed = os.time() - goldeneyes.starttime
     if elapsed < 1 then elapsed = 1 end
     local gph = math.floor((goldeneyes.total / elapsed) * 3600)
 
-    cecho("\n<goldeneyesGold>Goldeneyes Gold Tracking Ledger\n")
-    cecho("<goldeneyesSilver>  Enter <goldeneyesGold>goldeneyes help <goldeneyesSilver>for commands and settings.\n\n")
-    cecho("  <goldeneyesSilver>Gold Tracking: <green>" .. status .. "\n")
-    cecho("  <goldeneyesSilver>Accountant: " .. role .. "\n")
-    cecho("  <goldeneyesSilver>Strategy: " .. strat_text .. "\n")
-    cecho("  <goldeneyesSilver>Container:  <goldeneyesGold>" .. cont .. "\n\n")
-    
-    cecho("  <goldeneyesSilver>Gold Collected: <goldeneyesGold>" .. goldeneyes.format(goldeneyes.total) .. "\n")
-    cecho("  <goldeneyesSilver>Gold per hour:  <goldeneyesGold>" .. goldeneyes.format(gph) .. "\n")
+    -- Header & Status Bar
+    cecho("\n<goldeneyesGold>=======================================================================<reset>")
+    cecho("\n<goldeneyesGold>                   G O L D E N E Y E S   L E D G E R                   <reset>")
+    cecho("\n<goldeneyesGold>=======================================================================<reset>")
+    cecho(string.format("\n<goldeneyesSilver>  Tracker: [%s] | Split: [%s] | Stash: [<goldeneyesGold>%s<goldeneyesSilver>] | Collector: [%s]", status, strat_text, cont:title(), role))
+    cecho(string.format("\n"))
+    cecho(string.format("\n<goldeneyesCopper>  Total Gold: <goldeneyesGold>%-15s <goldeneyesCopper>Gold/Hour: <goldeneyesGold>%s\n", goldeneyes.format(goldeneyes.total), goldeneyes.format(gph)))
 
     if goldeneyes.org.name then
-        cecho("\n  <goldeneyesSilver>" .. string.format ("%14s", goldeneyes.org.name:title()) ..
-               ": <goldeneyesGold>" .. string.format ("%-8s", goldeneyes.format(goldeneyes.org.gold)) ..
-               " <goldeneyesSilver>(" .. goldeneyes.org.percent ..  "%)\n")
+        cecho(string.format("  <goldeneyesCopper>City/Org Tax  (<goldeneyesGold>%d%%<goldeneyesSilver>): <goldeneyesGold>%s\n", goldeneyes.org.percent, goldeneyes.format(goldeneyes.org.gold)))
     end
 
+    -- Active Shares Section
     if goldeneyes.count(goldeneyes.names) > 0 then 
-        cecho("\n  <orange>Currently Tracking:\n") 
-    end
-    
-    local shares = goldeneyes.get_shares()
-    for k, v in pairs(shares) do
-        cecho("  <goldeneyesSilver>" .. string.format("%14s", k:title()) .. ": <goldeneyesGold>" .. goldeneyes.format(v) .. "\n")
+        cecho("\n<goldeneyesCopper>  Active Shares:<reset>\n") 
+        local shares = goldeneyes.get_shares()
+        for k, v in pairs(shares) do
+            cecho("  <goldeneyesSilver>" .. string.format("%14s", k:title()) .. ": <goldeneyesGold>" .. goldeneyes.format(v) .. "\n")
+        end
+    else
+        cecho("\n<goldeneyesSilver>  No members currently tracked. Use <goldeneyesGold>gold group<goldeneyesSilver> to add.\n")
     end
 
+    -- Debts & Unknowns Section
     local ledger_count = goldeneyes.count(goldeneyes.ledger)
     local unknown_count = goldeneyes.count(goldeneyes.unknown_ledger)
 
     if ledger_count > 0 or unknown_count > 0 then
-        cecho("\n<orange>Gold Held by Others:\n")
+        cecho("\n<goldeneyesCopper>  Pending Debts & Held Gold:<reset>\n")
         local all_holders = {}
         for k,v in pairs(goldeneyes.ledger) do all_holders[k] = true end
         for k,v in pairs(goldeneyes.unknown_ledger) do all_holders[k] = true end
@@ -598,50 +607,11 @@ function goldeneyes.display()
             cecho(str .. "\n")
         end
     end
-    cecho("<reset>\n")
-    if type(goldeneyes.showprompt) == "function" then goldeneyes.showprompt() end
-end
 
--- Help menu
-function goldeneyes.help()
-    cecho("\n<goldeneyesGold>=======================================================================<reset>")
-    cecho("\n<goldeneyesGold>                    G O L D E N E Y E S   H E L P                      <reset>")
-    cecho("\n<goldeneyesGold>=======================================================================<reset>\n")
+    -- Footer
+    cecho("<goldeneyesGold>=======================================================================<reset>\n")
     
-    cecho("\n<goldeneyesSilver>Goldeneyes is a robust Mudlet ledger for Achaean hunting parties.")
-    cecho("\nCommands work with either <goldeneyesGold>goldeneyes<goldeneyesSilver> or <goldeneyesGold>gold<goldeneyesSilver>.")
-    cecho("\nPermanent settings (like colors and defaults) are configured in the")
-    cecho("\n<goldeneyesGold>goldeneyes.config<goldeneyesSilver> block at the top of the Lua script.<reset>\n")
-
-    cecho("\n<goldeneyesCopper>Basic Controls:<reset>")
-    cecho("\n  <goldeneyesGold>gold <on|off>               <goldeneyesSilver>- Turn tracker on/off.")
-    cecho("\n  <goldeneyesGold>gold reset                  <goldeneyesSilver>- Reset all totals (enter twice to confirm).")
-    cecho("\n  <goldeneyesGold>gold report [channel]       <goldeneyesSilver>- Announce totals (Channels: party, intrepid, say).")
-
-    cecho("\n\n<goldeneyesCopper>Group & Party Management:<reset>")
-    cecho("\n  <goldeneyesGold>gold strategy <even|fair>   <goldeneyesSilver>- Set split method (Default: even).")
-    cecho("\n  <goldeneyesGold>gold group                  <goldeneyesSilver>- Auto-add party, group, and intrepid members.")
-    cecho("\n  <goldeneyesGold>gold add <name>             <goldeneyesSilver>- Add a person to the split list.")
-    cecho("\n  <goldeneyesGold>gold remove <name>          <goldeneyesSilver>- Remove a person from the list.")
-    cecho("\n  <goldeneyesGold>gold pause <name>           <goldeneyesSilver>- Pause tracking for a member.")
-    cecho("\n  <goldeneyesGold>gold unpause <name>         <goldeneyesSilver>- Resume tracking for a member.")
-
-    cecho("\n\n<goldeneyesCopper>Loot & Accounting Automation:<reset>")
-    cecho("\n  <goldeneyesGold>gold alerts <on|off>        <goldeneyesSilver>- Toggle clickable party join/leave prompts.")
-    cecho("\n  <goldeneyesGold>gold accountant <name>      <goldeneyesSilver>- Designate the collector (Default: You).")
-    cecho("\n  <goldeneyesGold>gold autohandover <on|off>  <goldeneyesSilver>- Automatically give loot to collector.")
-    cecho("\n  <goldeneyesGold>gold autoloot <on|off>      <goldeneyesSilver>- Toggle auto-looting.")
-    cecho("\n  <goldeneyesGold>gold container <name>       <goldeneyesSilver>- Set gold container (e.g., 'pack').")
-    cecho("\n  <goldeneyesGold>gold stash                  <goldeneyesSilver>- Move all carried gold to container.")
-    cecho("\n  <goldeneyesGold>gold distribute [channel]   <goldeneyesSilver>- Empty container and share gold.")
-
-    cecho("\n\n<goldeneyesCopper>Advanced Math & Checks:<reset>")
-    cecho("\n  <goldeneyesGold>gold calc <amt> <#>         <goldeneyesSilver>- Quick math to split an amount of gold.")
-    cecho("\n  <goldeneyesGold>gold check                  <goldeneyesSilver>- Capture 'Show Gold' to find hidden rewards.")
-    cecho("\n  <goldeneyesGold>gold plus <amount>          <goldeneyesSilver>- Manually add to Total.")
-    cecho("\n  <goldeneyesGold>gold minus <amount>         <goldeneyesSilver>- Manually subtract from Total.")
-    
-    cecho("\n<goldeneyesGold>=======================================================================<reset>\n")
+    -- Safe trigger for custom prompts
     if type(goldeneyes.showprompt) == "function" then goldeneyes.showprompt() end
 end
 
@@ -668,19 +638,19 @@ function goldeneyes.set_strategy(strat)
     strat = strat and strat:lower() or "even"
     if strat == "even" or strat == "fair" then
         goldeneyes.config.split_strategy = strat
-        goldeneyes.echo("Split strategy set to: <goldeneyesGold>" .. strat:title())
-        cecho("\n<goldeneyesGold>Even <goldeneyesSilver>split will divide the total gold pool equally among members at distribution time, regardless of when a member joined.\n")
-        cecho("\n<goldeneyesGold>Fair <goldeneyesSilver>split will distribute gold based on when each person joined the party, at distribution time.\n")
+        goldeneyes.echo("Split strategy set to: <goldeneyesGold>" .. strat:title() .. "\n")
+        cecho("  <goldeneyesGold>Even <goldeneyesSilver>split will divide the total gold pool equally among current members at distribution time.\n")
+        cecho("  <goldeneyesGold>Fair <goldeneyesSilver>split will distribute gold based on when each person joined the party.\n")
         if type(goldeneyes.showprompt) == "function" then goldeneyes.showprompt() end
     else
-        cecho("\n<goldeneyesSilver>Usage: <goldeneyesGold>goldeneyes strategy <even|fair>")
+        goldeneyes.echo("<goldeneyesSilver>Usage: <goldeneyesGold>goldeneyes strategy <even|fair>")
     end
 end
 
 -- Designate the collector
 function goldeneyes.set_accountant(name)
     goldeneyes.accountant = name:title()
-    goldeneyes.echo("Collector set to <goldeneyesGold>" .. name)
+    cecho("Collector set to <goldeneyesGold>" .. name)
     if type(goldeneyes.showprompt) == "function" then goldeneyes.showprompt() end
 end
 
@@ -688,37 +658,28 @@ end
 function goldeneyes.togglealerts(val)
     local state = val:lower() == "on"
     goldeneyes.config.party_alerts = state
-    goldeneyes.echo("Party alerts are now " .. (state and "<green>ENABLED<goldeneyesSilver>" or "<red>DISABLED<goldeneyesSilver>"))
+    cecho("Party alerts are now " .. (state and "<green>ENABLED<goldeneyesSilver>" or "<red>DISABLED<goldeneyesSilver>"))
 end
 
 -- Toggle the entire tracker
-function goldeneyes.toggle(enabled)
-    local state = enabled:lower() == "on"
+function goldeneyes.toggle(toggle_cmd)
+    -- Check if the command was "on" OR "enabled"
+    local state = (toggle_cmd:lower() == "on" or toggle_cmd:lower() == "enabled")
     goldeneyes.enabled = state
 
     if state and goldeneyes.count(goldeneyes.names) == 0 and gmcp.Char and gmcp.Char.Name then
         goldeneyes.add(gmcp.Char.Name.name:lower())
     end
-    goldeneyes.echo("tracking " .. (state and "<goldeneyesGold>enabled" or "<goldeneyesSilver>disabled"))
+    goldeneyes.echo("Tracking " .. (state and "<goldeneyesGold>enabled" or "<red>disabled"))
+    
     if type(goldeneyes.showprompt) == "function" then goldeneyes.showprompt() end
 end
 
 -- Double-tap reset logic
+-- Warning prompt for manual reset
 function goldeneyes.reset()
-    if goldeneyes.reset_pending then
-        goldeneyes.confirm_reset()
-        goldeneyes.save()
-        if goldeneyes.reset_timer then killTimer(goldeneyes.reset_timer) end
-        goldeneyes.reset_pending = false
-    else
-        goldeneyes.reset_pending = true
-        cecho("\n<goldeneyesSilver>[<goldeneyesGold>Goldeneyes<goldeneyesSilver>]: <red>WARNING!<goldeneyesSilver> This will wipe ALL data (Total: " .. goldeneyes.format(goldeneyes.total) .. ").\n")
-        cecho("<goldeneyesSilver>Type <goldeneyesGold>goldeneyes reset<goldeneyesSilver> again within 6 seconds to confirm.\n")
-        goldeneyes.reset_timer = tempTimer(6, function()
-            goldeneyes.reset_pending = false
-            cecho("\n<goldeneyesSilver>[<goldeneyesGold>Goldeneyes<goldeneyesSilver>]: Reset cancelled.\n")
-        end)
-    end
+    cecho("\n<goldeneyesSilver>[<goldeneyesGold>Goldeneyes<goldeneyesSilver>]: <red>WARNING!<goldeneyesSilver> This will wipe ALL data (Total: " .. goldeneyes.format(goldeneyes.total) .. ").\n")
+    cecho("<goldeneyesSilver>To proceed, type <goldeneyesGold>goldeneyes reset confirm<reset>\n")
 end
 
 -- Wipes the memory arrays
@@ -735,20 +696,31 @@ function goldeneyes.confirm_reset()
 
     if gmcp.Char and gmcp.Char.Name then goldeneyes.add(gmcp.Char.Name.name) end
     goldeneyes.set_baseline()
+    goldeneyes.save() -- Immediately commit the wipe to the JSON file
     goldeneyes.echo("<red>Tracker has been reset.<reset>")
     if type(goldeneyes.showprompt) == "function" then goldeneyes.showprompt() end
 end
 
 -- Final payout command
+-- Final payout command
 function goldeneyes.distribute(channel)
     local cont = goldeneyes.config.container or "pack"
-    
-    if cont:lower() ~= "none" and cont:lower() ~= "inventory" then
-        send("queue add eqbal get gold from " .. cont)
-    end
-    
     local shares = goldeneyes.get_shares()
     local members = goldeneyes.count(goldeneyes.names)
+    local my_name = gmcp.Char.Name.name:lower()
+    
+    -- Calculate the exact amount of gold needed for others (excluding yourself)
+    local total_payout = 0
+    for k, v in pairs(shares) do
+        if k ~= my_name then
+            total_payout = total_payout + math.floor(v)
+        end
+    end
+    
+    -- Only get the exact amount we need to hand out
+    if cont:lower() ~= "none" and cont:lower() ~= "inventory" and total_payout > 0 then
+        send("queue add eqbal get " .. total_payout .. " gold from " .. cont)
+    end
     
     channel = channel and channel:lower() or "party"
     local cmd = "pt"
@@ -788,7 +760,7 @@ function goldeneyes.distribute(channel)
 
     local delay = 0.5
     for k, v in pairs(shares) do
-        if k ~= gmcp.Char.Name.name:lower() then
+        if k ~= my_name then
             v = math.floor(v)
             if v > 0 then 
                 tempTimer(delay, function() send("queue add eqbal give " .. v .. " gold to " .. k) end)
@@ -798,13 +770,13 @@ function goldeneyes.distribute(channel)
     end
 
     goldeneyes.echo("Distributed gold from <goldeneyesGold>" .. cont)
-    cecho("\n\n<goldeneyesSilver>Distribution complete. Verify everyone received their share, then type <goldeneyesGold>goldeneyes reset<goldeneyesSilver>.\n")
+    cecho("\n\n<goldeneyesSilver>Distribution commands queued. Auto-resetting tracker to prevent double payouts.\n")
+    goldeneyes.confirm_reset()
 end
 
 -- =========================================================================
 -- Event Handlers & Hooks
 -- =========================================================================
-
 -- Hooks on user character load to configure initial states
 function goldeneyes_login_check()
     if not gmcp or not gmcp.Char or not gmcp.Char.Name then return end
@@ -833,6 +805,7 @@ function goldeneyes_login_check()
     end
 end
 
+-- Ensure we don't register multiple handlers on reload
 if goldeneyes.login_handler then killAnonymousEventHandler(goldeneyes.login_handler) end
 goldeneyes.login_handler = registerAnonymousEventHandler("gmcp.Char.Name", "goldeneyes_login_check")
 
@@ -1055,8 +1028,55 @@ function goldeneyes.create_triggers()
             cecho("\n")
         end
     ]]))
+
+-- =========================================================================
+-- In-Game Commands & Help Interface
+-- Powers the text that appears when you type "goldeneyes help" in game, as well as
+-- the various toggles and commands you can use on the fly without editing your config.
+-- =========================================================================
+function goldeneyes.help()
+    cecho("\n<goldeneyesGold>=======================================================================<reset>")
+    cecho("\n<goldeneyesGold>                    G O L D E N E Y E S   H E L P                      <reset>")
+    cecho("\n<goldeneyesGold>=======================================================================<reset>\n")
     
-    -- Master Alias: Route all user commands to functions
+    cecho("\n<goldeneyesSilver>Goldeneyes is a robust Mudlet ledger for Achaean hunting parties.")
+    cecho("\nCommands work with either <goldeneyesGold>goldeneyes<goldeneyesSilver> or <goldeneyesGold>gold<goldeneyesSilver>.")
+    cecho("\nPermanent settings (like colors and defaults) are configured in the")
+    cecho("\n<goldeneyesGold>goldeneyes.config<goldeneyesSilver> block at the top of the Lua script.<reset>\n")
+
+    cecho("\n<goldeneyesCopper>Basic Controls:<reset>")
+    cecho("\n  <goldeneyesGold>gold <on|off>               <goldeneyesSilver>- Turn tracker on/off.")
+    cecho("\n  <goldeneyesGold>gold reset                  <goldeneyesSilver>- Reset all totals (enter twice to confirm).")
+    cecho("\n  <goldeneyesGold>gold report [channel]       <goldeneyesSilver>- Announce totals (Channels: party, intrepid, say).")
+
+    cecho("\n\n<goldeneyesCopper>Group & Party Management:<reset>")
+    cecho("\n  <goldeneyesGold>gold strategy <even|fair>   <goldeneyesSilver>- Set split method (Default: even).")
+    cecho("\n  <goldeneyesGold>gold group                  <goldeneyesSilver>- Auto-add party, group, and intrepid members.")
+    cecho("\n  <goldeneyesGold>gold add <name>             <goldeneyesSilver>- Add a person to the split list.")
+    cecho("\n  <goldeneyesGold>gold remove <name>          <goldeneyesSilver>- Remove a person from the list.")
+    cecho("\n  <goldeneyesGold>gold pause <name>           <goldeneyesSilver>- Pause tracking for a member.")
+    cecho("\n  <goldeneyesGold>gold unpause <name>         <goldeneyesSilver>- Resume tracking for a member.")
+
+    cecho("\n\n<goldeneyesCopper>Loot & Accounting Automation:<reset>")
+    cecho("\n  <goldeneyesGold>gold alerts <on|off>        <goldeneyesSilver>- Toggle clickable party join/leave prompts.")
+    cecho("\n  <goldeneyesGold>gold accountant <name>      <goldeneyesSilver>- Designate the collector (Default: You).")
+    cecho("\n  <goldeneyesGold>gold autohandover <on|off>  <goldeneyesSilver>- Automatically give loot to collector.")
+    cecho("\n  <goldeneyesGold>gold autoloot <on|off>      <goldeneyesSilver>- Toggle auto-looting.")
+    cecho("\n  <goldeneyesGold>gold container <name>       <goldeneyesSilver>- Set gold container (e.g., 'pack').")
+    cecho("\n  <goldeneyesGold>gold stash                  <goldeneyesSilver>- Move all carried gold to container.")
+    cecho("\n  <goldeneyesGold>gold distribute [channel]   <goldeneyesSilver>- Empty container and share gold.")
+
+    cecho("\n\n<goldeneyesCopper>Advanced Math & Checks:<reset>")
+    cecho("\n  <goldeneyesGold>gold calc <amt> <#>         <goldeneyesSilver>- Quick math to split an amount of gold.")
+    cecho("\n  <goldeneyesGold>gold check                  <goldeneyesSilver>- Capture 'Show Gold' to find hidden rewards.")
+    cecho("\n  <goldeneyesGold>gold plus <amount>          <goldeneyesSilver>- Manually add to Total.")
+    cecho("\n  <goldeneyesGold>gold minus <amount>         <goldeneyesSilver>- Manually subtract from Total.")
+    
+    cecho("\n<goldeneyesGold>=======================================================================<reset>\n")
+    if type(goldeneyes.showprompt) == "function" then goldeneyes.showprompt() end
+end
+
+-- Master Alias: Route all user commands to functions
     table.insert(goldeneyes.alias_ids, tempAlias("^(?:goldeneyes|gold)(?:\\s+(.*))?$", 
     [[
         local args_str = matches[2] or ""
@@ -1065,7 +1085,7 @@ function goldeneyes.create_triggers()
 
         if cmd == "" then goldeneyes.display()
         elseif cmd == "help" then goldeneyes.help()
-        elseif cmd == "on" or cmd == "off" then goldeneyes.toggle(cmd)
+        elseif cmd == "on" or cmd == "off" or cmd == "enabled" or cmd == "disabled" then goldeneyes.toggle(cmd)
         elseif cmd == "autoloot" then goldeneyes.togglepickup(args[2] or "")
         elseif cmd == "container" then 
             if args[2] then goldeneyes.setcontainer(args[2]) else cecho("\n<goldeneyesSilver>Usage: <goldeneyesGold>goldeneyes container <name>") end
@@ -1077,7 +1097,8 @@ function goldeneyes.create_triggers()
         elseif cmd == "minus" then local amt = tonumber(args[2]); if amt then goldeneyes.minus(amt) end
         elseif cmd == "pause" then if args[2] then goldeneyes.pause(args[2]) end
         elseif cmd == "unpause" then if args[2] then goldeneyes.unpause(args[2]) end
-        elseif cmd == "reset" then goldeneyes.reset()
+        elseif cmd == "reset" then 
+            if args[2] == "confirm" then goldeneyes.confirm_reset() else goldeneyes.reset() end
         elseif cmd == "distribute" then goldeneyes.distribute(args[2])
         elseif cmd == "snapshot" then goldeneyes.start_snapshot()
         elseif cmd == "check" then goldeneyes.check_reward()
