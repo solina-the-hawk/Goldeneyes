@@ -24,10 +24,10 @@ Goldeneyes is an automated gold tracking and distribution utility designed for A
 ## 📥 Installation
 
 1. Download the latest release from the [GitHub Repository](https://github.com/solina-the-hawk/goldeneyes/).
-2. Extract the files.
-3. Place `Goldeneyes-Core.lua` inside a `Goldeneyes` folder within your Mudlet Home Directory. The path should look like this: `[Mudlet Home Directory]/Goldeneyes/Goldeneyes-Core.lua`.
-4. Open Mudlet, go to **Package Manager**, and install `Goldeneyes.xml`.
-5. Goldeneyes will automatically load the core Lua file.
+2. Install the Mudlet Package (You're done!)
+
+OR
+1. Create a new script in Mudlet called Goldeneyes Core, paste the contents of `Goldeneyes-Core.lua` inside and save it. (You're done!)
 
 ---
 
