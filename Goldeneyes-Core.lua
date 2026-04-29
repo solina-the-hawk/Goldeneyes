@@ -59,22 +59,24 @@ local my_name = (gmcp and gmcp.Char and gmcp.Char.Name and gmcp.Char.Name.name) 
 goldeneyes.accountant = goldeneyes.accountant or my_name
 
 -- =========================================================================
--- SECTION 2: UTILITIES & FILE I/O
+-- Helper Functions
+-- Several simple functions to help format numbers, count elements in a table,
+-- and echo package related messages in a clean and reliable way.
 -- =========================================================================
 
--- Counts elements in a table
+-- Counts elements in a table.
 function goldeneyes.count(t)
     local count = 0
     for _ in pairs(t) do count = count + 1 end
     return count
 end
 
--- Standardized script echo
+-- Standardized script echo.
 function goldeneyes.echo(x)
     cecho("\n<goldeneyesSilver>[<goldeneyesGold>Goldeneyes<goldeneyesSilver>]: " .. x .. "<reset>")
 end
 
--- Formats numbers with commas (e.g., 10000 -> 10,000)
+-- Formats numbers with commas (e.g., 10000 -> 10,000).
 function goldeneyes.format(amount)
     if not amount then return "0" end
     local formatted = tostring(math.floor(tonumber(amount) or 0))
@@ -86,8 +88,8 @@ function goldeneyes.format(amount)
     return formatted
 end
 
--- Empty placeholder for custom prompt hooks (prevents nil errors)
-function goldeneyes.showprompt() end
+-- Empty placeholder for custom prompt hooks (prevents nil errors).
+function if type(goldeneyes.showprompt) == "function" then goldeneyes.showprompt() end end
 
 -- =========================================================================
 -- Profile Management
@@ -100,7 +102,7 @@ function goldeneyes.get_save_path()
     return getMudletHomeDir() .. "/Goldeneyes-Data.lua"
 end
 
-ffunction goldeneyes.save()
+function goldeneyes.save()
     -- Check and create the master Goldeneyes folder before saving
     local baseDir = getMudletHomeDir() .. "/Goldeneyes"
     if not lfs.attributes(baseDir) then lfs.mkdir(baseDir) end
@@ -169,11 +171,13 @@ function goldeneyes.load()
     end
 end
 
--- =========================================================== --
--- SECTION 3: LEDGER & MATH LOGIC                              --
--- =========================================================== --
+-- =========================================================================
+-- SLedger & Math Logic
+-- Does the mathematics for calculating shares, adding amounts and updating totals,
+-- etc. This is the core of the package and where most of the "magic" happens.
+-- =========================================================================
 
--- Calculates current shares based on active strategy
+-- Calculates current shares based on active strategy.
 function goldeneyes.get_shares()
     local shares = {}
     local count = goldeneyes.count(goldeneyes.names)
@@ -193,7 +197,7 @@ function goldeneyes.get_shares()
     return shares
 end
 
--- Manually add gold to the total pool
+-- Manually add gold to the total pool.
 function goldeneyes.plus(amt, noecho)
     local original_amt = amt
     local x = goldeneyes
@@ -213,10 +217,10 @@ function goldeneyes.plus(amt, noecho)
 
     x.total = x.total + original_amt
     if not noecho then x.echo("<goldeneyesGold>" .. goldeneyes.format(original_amt) .. " <goldeneyesSilver>gold added.") end
-    x.showprompt()
+    if type(x.showprompt) == "function" then x.showprompt() end
 end
 
--- Manually subtract gold from the total pool
+-- Manually subtract gold from the total pool.
 function goldeneyes.minus(amt)
     local x = goldeneyes
     local i = amt
@@ -233,10 +237,10 @@ function goldeneyes.minus(amt)
 
     x.total = x.total - amt
     x.echo("<goldeneyesGold>" .. goldeneyes.format(amt) .. " <goldeneyesSilver>gold removed.")
-    x.showprompt()
+    if type(x.showprompt) == "function" then x.showprompt() end
 end
 
--- Quick external math calculator
+-- Quick external math calculator.
 function goldeneyes.calc(amount, people)
     if type(amount) == "string" then amount = amount:gsub(",", "") end
     
@@ -260,7 +264,7 @@ function goldeneyes.calc(amount, people)
     goldeneyes.echo(msg)
 end
 
--- Log known expenses (e.g. shop purchases) for the snapshot checker
+-- Log known expenses (e.g. shop purchases) for the snapshot checker.
 function goldeneyes.add_expense(amt)
     if goldeneyes.enabled then
         goldeneyes.expenses = goldeneyes.expenses + amt
@@ -268,9 +272,11 @@ function goldeneyes.add_expense(amt)
     end
 end
 
--- =========================================================== --
--- SECTION 4: PARTY & TRACKER MANAGEMENT                       --
--- =========================================================== --
+-- =========================================================================
+-- Party & Group Management
+-- Tracks party members and their shares, allows you to quickly add/remove 
+-- people from the split.
+-- =========================================================================
 
 -- Add an individual to the split
 function goldeneyes.add(name)
@@ -281,7 +287,7 @@ function goldeneyes.add(name)
     else
         goldeneyes.echo("<goldeneyesGold>" .. name:title() .. " <goldeneyesSilver>is already being tracked.")
     end
-    goldeneyes.showprompt()
+    if type(goldeneyes.showprompt) == "function" then goldeneyes.showprompt() end
 end
 
 -- Remove an individual from the split
@@ -294,7 +300,7 @@ function goldeneyes.remove(name)
     else
         goldeneyes.echo("<goldeneyesGold>" .. name .. " <goldeneyesSilver>is not currently being tracked.")
     end
-    goldeneyes.showprompt()
+    if type(goldeneyes.showprompt) == "function" then goldeneyes.showprompt() end
 end
 
 -- Pause a tracked member (preserves their current share)
@@ -305,7 +311,7 @@ function goldeneyes.pause(name)
         goldeneyes.paused[name] = goldeneyes.names[name]
         goldeneyes.names[name] = nil
     end
-    goldeneyes.showprompt()
+    if type(goldeneyes.showprompt) == "function" then goldeneyes.showprompt() end
 end
 
 -- Unpause a tracked member
@@ -316,7 +322,7 @@ function goldeneyes.unpause(name)
         goldeneyes.names[name] = goldeneyes.paused[name]
         goldeneyes.paused[name] = nil
     end
-    goldeneyes.showprompt()
+    if type(goldeneyes.showprompt) == "function" then goldeneyes.showprompt() end
 end
 
 -- Trigger an in-game scan for Party, Group, and Intrepid members
@@ -363,7 +369,7 @@ function goldeneyes.scan_group()
             goldeneyes.scan_triggers = {}
         end
         goldeneyes.echo("Group scan complete.")
-        goldeneyes.showprompt()
+        if type(goldeneyes.showprompt) == "function" then goldeneyes.showprompt() end
     end)
 end
 
@@ -390,9 +396,11 @@ function goldeneyes.ignore_pending(name)
     end
 end
 
--- =========================================================== --
--- SECTION 5: INVENTORY & LOOT MANAGEMENT                      --
--- =========================================================== --
+-- =========================================================================
+-- Inventory & Loot Management
+-- Controls movement of gold around the inventory, where to stash things, and
+-- automatically picking up gold and handing it over to the accountant if desired.
+-- =========================================================================
 
 -- Set physical container for gold storage
 function goldeneyes.setcontainer(name)
@@ -460,9 +468,11 @@ function goldeneyes.handle_loot(amt)
     end
 end
 
--- =========================================================== --
--- SECTION 6: SNAPSHOTS & REWARDS (MATH CHECKS)                --
--- =========================================================== --
+-- =========================================================================
+-- Snapshots & Checks
+-- Used to snapshot current gold amounts and watch for changes not caught in
+-- gold drop and looting messages, such as quest rewards.
+-- =========================================================================
 
 -- Alias wrapper to set baseline
 function goldeneyes.start_snapshot()
@@ -526,9 +536,10 @@ function goldeneyes.process_gold_capture(hand, bank)
     goldeneyes.capture_mode = nil
 end
 
--- =========================================================== --
--- SECTION 7: UI & COMMANDS                                    --
--- =========================================================== --
+-- =========================================================================
+-- UI & Display
+-- Controls the help menu and the informational displays.
+-- =========================================================================
 
 -- Master display layout
 function goldeneyes.display()
@@ -588,7 +599,7 @@ function goldeneyes.display()
         end
     end
     cecho("<reset>\n")
-    goldeneyes.showprompt()
+    if type(goldeneyes.showprompt) == "function" then goldeneyes.showprompt() end
 end
 
 -- Help menu
@@ -631,7 +642,7 @@ function goldeneyes.help()
     cecho("\n  <goldeneyesGold>gold minus <amount>         <goldeneyesSilver>- Manually subtract from Total.")
     
     cecho("\n<goldeneyesGold>=======================================================================<reset>\n")
-    goldeneyes.showprompt()
+    if type(goldeneyes.showprompt) == "function" then goldeneyes.showprompt() end
 end
 
 -- Announce the current progress
@@ -660,7 +671,7 @@ function goldeneyes.set_strategy(strat)
         goldeneyes.echo("Split strategy set to: <goldeneyesGold>" .. strat:title())
         cecho("\n<goldeneyesGold>Even <goldeneyesSilver>split will divide the total gold pool equally among members at distribution time, regardless of when a member joined.\n")
         cecho("\n<goldeneyesGold>Fair <goldeneyesSilver>split will distribute gold based on when each person joined the party, at distribution time.\n")
-        goldeneyes.showprompt()
+        if type(goldeneyes.showprompt) == "function" then goldeneyes.showprompt() end
     else
         cecho("\n<goldeneyesSilver>Usage: <goldeneyesGold>goldeneyes strategy <even|fair>")
     end
@@ -670,7 +681,7 @@ end
 function goldeneyes.set_accountant(name)
     goldeneyes.accountant = name:title()
     goldeneyes.echo("Collector set to <goldeneyesGold>" .. name)
-    goldeneyes.showprompt()
+    if type(goldeneyes.showprompt) == "function" then goldeneyes.showprompt() end
 end
 
 -- Toggle click-to-add UI alerts
@@ -689,7 +700,7 @@ function goldeneyes.toggle(enabled)
         goldeneyes.add(gmcp.Char.Name.name:lower())
     end
     goldeneyes.echo("tracking " .. (state and "<goldeneyesGold>enabled" or "<goldeneyesSilver>disabled"))
-    goldeneyes.showprompt()
+    if type(goldeneyes.showprompt) == "function" then goldeneyes.showprompt() end
 end
 
 -- Double-tap reset logic
@@ -725,7 +736,7 @@ function goldeneyes.confirm_reset()
     if gmcp.Char and gmcp.Char.Name then goldeneyes.add(gmcp.Char.Name.name) end
     goldeneyes.set_baseline()
     goldeneyes.echo("<red>Tracker has been reset.<reset>")
-    goldeneyes.showprompt()
+    if type(goldeneyes.showprompt) == "function" then goldeneyes.showprompt() end
 end
 
 -- Final payout command
@@ -790,10 +801,9 @@ function goldeneyes.distribute(channel)
     cecho("\n\n<goldeneyesSilver>Distribution complete. Verify everyone received their share, then type <goldeneyesGold>goldeneyes reset<goldeneyesSilver>.\n")
 end
 
-
--- =========================================================== --
--- SECTION 8: EVENT HANDLERS                                   --
--- =========================================================== --
+-- =========================================================================
+-- Event Handlers & Hooks
+-- =========================================================================
 
 -- Hooks on user character load to configure initial states
 function goldeneyes_login_check()
@@ -833,10 +843,11 @@ goldeneyes.save_exit_handler = registerAnonymousEventHandler("sysExitEvent", "go
 if goldeneyes.save_dc_handler then killAnonymousEventHandler(goldeneyes.save_dc_handler) end
 goldeneyes.save_dc_handler = registerAnonymousEventHandler("sysDisconnectionEvent", "goldeneyes.save")
 
-
--- =========================================================== --
--- SECTION 9: DYNAMIC TRIGGERS & ALIASES                       --
--- =========================================================== --
+-- =========================================================================
+-- Dynamic Triggers & Aliases
+-- These are used for all in-game event detection, such as gold pickups, 
+-- expenses, and similar events.
+-- =========================================================================
 
 goldeneyes.trigger_ids = goldeneyes.trigger_ids or {}
 goldeneyes.alias_ids = goldeneyes.alias_ids or {}
@@ -1094,15 +1105,14 @@ function goldeneyes.create_triggers()
     goldeneyes.echo("Dynamic triggers and aliases loaded.")
 end
 
--- =========================================================== --
--- SECTION 10: SCRIPT STARTUP                                  --
--- =========================================================== --
-
+-- =========================================================================
+-- Initialization
+-- This section runs once when the script is loaded to set up the initial state,
+-- load saved data, and prepare the system for use.
+-- =========================================================================
 -- Initialize the triggers
 goldeneyes.create_triggers()
-
 -- Load the saved configuration to overwrite defaults
 goldeneyes.load()
-
 -- Inform user it successfully loaded
-cecho("\n<green>Goldeneyes Core Loaded Successfully!<reset>\n")
+goldeneyes.echo("Loaded Successfully!")
