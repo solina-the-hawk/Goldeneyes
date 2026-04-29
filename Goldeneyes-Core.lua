@@ -13,8 +13,9 @@ Goldeneyes = Goldeneyes or {}
 -- your profile.
 -- =========================================================================
 Goldeneyes.config = Goldeneyes.config or {
-    -- container: The default container into which to stash gold.
-    container = "pouch",
+    -- container: The default container into which to stash gold. 
+    -- (Recommendation: Use a dedicated container separate from your personal gold!)
+    container = "Pack",
     -- pickup: Whether or not to default to picking up gold that we see automatically.
     pickup = true,
     -- autohandover: Whether or not to default to handing gold over immediately to the accountant.
@@ -415,6 +416,7 @@ end
 function Goldeneyes.setcontainer(name)
     Goldeneyes.config.container = name
     Goldeneyes.echo("Loot container set to: <goldeneyesGold>" .. name)
+    cecho("\n<goldeneyesSilver>  (Tip: For accurate payouts, use a dedicated container separate from your personal gold!)\n")
     Goldeneyes.save()
 end
 
@@ -1042,7 +1044,7 @@ function Goldeneyes.help()
     cecho("\n<goldeneyesGold>=======================================================================<reset>\n")
     
     cecho("\n<goldeneyesSilver>Goldeneyes is a robust Mudlet ledger for Achaean hunting parties.")
-    cecho("\n<goldeneyesSilver>Commands work with either <goldeneyesGold>Goldeneyes<goldeneyesSilver> or <goldeneyesGold>gold<goldeneyesSilver>.")
+    cecho("\n<goldeneyesSilver>Commands work with either <goldeneyesGold>goldeneyes<goldeneyesSilver> or <goldeneyesGold>gold<goldeneyesSilver>.")
     cecho("\n<goldeneyesSilver>Permanent settings (like colors and defaults) are configured in the")
     cecho("\n<goldeneyesGold>Goldeneyes.config<goldeneyesSilver> block at the top of the Lua script.<reset>\n")
 
@@ -1064,7 +1066,7 @@ function Goldeneyes.help()
     cecho("\n  <goldeneyesGold>gold accountant <name>      <reset>- Designate the collector (Default: You).")
     cecho("\n  <goldeneyesGold>gold autohandover <on|off>  <reset>- Automatically give loot to collector.")
     cecho("\n  <goldeneyesGold>gold autoloot <on|off>      <reset>- Toggle auto-looting.")
-    cecho("\n  <goldeneyesGold>gold container <name>       <reset>- Set gold container (e.g., 'pack').")
+    cecho("\n  <goldeneyesGold>gold container <name>       <reset>- Set loot container (use a dedicated, empty one).")
     cecho("\n  <goldeneyesGold>gold stash                  <reset>- Move all carried gold to container.")
     cecho("\n  <goldeneyesGold>gold distribute [channel]   <reset>- Empty container and share gold.")
 
