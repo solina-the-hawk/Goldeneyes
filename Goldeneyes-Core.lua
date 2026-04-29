@@ -28,7 +28,7 @@ goldeneyes.config = goldeneyes.config or {
     -- display (using RGB values).
     colors = {
         goldeneyesGold   = {255, 215, 0},
-        goldeneyesSilver = {160, 160, 160},
+        goldeneyesSilver = {192, 192, 192},
         goldeneyesCopper = {184, 115, 51},
     }
 }
@@ -89,7 +89,7 @@ function goldeneyes.format(amount)
 end
 
 -- Empty placeholder for custom prompt hooks (prevents nil errors).
-function if type(goldeneyes.showprompt) == "function" then goldeneyes.showprompt() end end
+function goldeneyes.showprompt() end
 
 -- =========================================================================
 -- Profile Management
@@ -848,7 +848,6 @@ goldeneyes.save_dc_handler = registerAnonymousEventHandler("sysDisconnectionEven
 -- These are used for all in-game event detection, such as gold pickups, 
 -- expenses, and similar events.
 -- =========================================================================
-
 goldeneyes.trigger_ids = goldeneyes.trigger_ids or {}
 goldeneyes.alias_ids = goldeneyes.alias_ids or {}
 
@@ -875,11 +874,11 @@ function goldeneyes.create_triggers()
         cecho("\n<red>[ALERT]: Someone's artifact just auto-looted a MYSTERY pile of gold!<reset>")
     ]]))
 
-    -- Trigger: Shop Purchases & Bribes (Expenses)
+    -- Trigger: Shop Purchases & Expenses
     table.insert(goldeneyes.trigger_ids, tempRegexTrigger("^You pay ([\\d,]+) gold sovereigns\\.$", [[ goldeneyes.add_expense(tonumber((matches[2]:gsub(",", "")))) ]]))
     table.insert(goldeneyes.trigger_ids, tempRegexTrigger("^You buy .* for ([\\d,]+) gold\\.$", [[ goldeneyes.add_expense(tonumber((matches[2]:gsub(",", "")))) ]]))
     
-    -- Trigger: Gold Given Away (Handover resolution)
+    -- Trigger: Gold Given Away (Handover Resolution)
     table.insert(goldeneyes.trigger_ids, tempRegexTrigger("^You give ([\\d,]+) gold to (\\w+)", 
     [[ 
         local amount = tonumber((matches[2]:gsub(",", "")))
@@ -896,7 +895,7 @@ function goldeneyes.create_triggers()
         end
     ]]))
 
-    -- Trigger: Handover Failure (Accountant left room/logged off)
+    -- Trigger: Handover Failure (Accountant Unavailable)
     table.insert(goldeneyes.trigger_ids, tempRegexTrigger("^(?:Ahh, I am truly sorry, but I do not see anyone by that name here\\.|You cannot see that being here\\.|You cannot find anyone by that name here\\.)$", 
     [[
         local my_name = (gmcp and gmcp.Char and gmcp.Char.Name and gmcp.Char.Name.name:lower()) or "unknown"
@@ -930,7 +929,7 @@ function goldeneyes.create_triggers()
     local grab_regex = "(?:^A.*sovereigns? spills? from the corpse|A pile of golden sovereigns twinkles and gleams\\.|There is.*pile of golden sovereigns here\\.|pile of .*sovereigns?)"
     table.insert(goldeneyes.trigger_ids, tempRegexTrigger(grab_regex, grab_script))
 
-    -- Trigger: Gold Received (Handover/Watchdog Resolution)
+    -- Trigger: Gold Received (Handover Resolution)
     table.insert(goldeneyes.trigger_ids, tempRegexTrigger("^(\\w+) gives you ([\\d,]+) gold", 
     [[
         local name = matches[2]
@@ -977,7 +976,7 @@ function goldeneyes.create_triggers()
             cecho(string.format("\n<goldeneyesSilver>[<goldeneyesGold>Goldeneyes<goldeneyesSilver>]: <orange>ALERT<goldeneyesSilver>: <goldeneyesGold>%s<goldeneyesSilver> picked up <orange>%s<goldeneyesSilver> gold!", name, goldeneyes.format(amount)))
         end
     ]]))
-    -- 8. Capture Gold (Start of message)
+    -- 8a. Capture Gold (Start of message)
     table.insert(goldeneyes.trigger_ids, tempRegexTrigger("^You have [%d,]+ gold sovereign.*", 
     [[
         if goldeneyes.capture_mode then
@@ -1101,8 +1100,6 @@ function goldeneyes.create_triggers()
         elseif cmd == "calc" then goldeneyes.calc(args[2], args[3])
         else cecho("\n<goldeneyesSilver>Unknown command. Try <goldeneyesGold>goldeneyes help<goldeneyesSilver>.") end
     ]]))
-
-    goldeneyes.echo("Dynamic triggers and aliases loaded.")
 end
 
 -- =========================================================================
