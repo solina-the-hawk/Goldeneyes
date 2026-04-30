@@ -13,9 +13,11 @@ Goldeneyes = Goldeneyes or {}
 -- your profile.
 -- =========================================================================
 Goldeneyes.config = Goldeneyes.config or {
-    -- container: The default container into which to stash gold. 
+    -- stash: The default container into which to stash group gold. 
     -- (Recommendation: Use a dedicated container separate from your personal gold!)
-    container = "Pack",
+    stash = "pack",
+    -- wallet: Optional container to automatically store your personal cut of the gold.
+    wallet = "pouch",
     -- pickup: Whether or not to default to picking up gold that we see automatically.
     pickup = true,
     -- autohandover: Whether or not to default to handing gold over immediately to the accountant.
@@ -412,17 +414,24 @@ end
 -- automatically picking up gold and handing it over to the accountant if desired.
 -- =========================================================================
 
--- Set physical container for gold storage
-function Goldeneyes.setcontainer(name)
-    Goldeneyes.config.container = name
-    Goldeneyes.echo("Loot container set to: <goldeneyesGold>" .. name)
+-- Set physical container for group gold storage
+function Goldeneyes.setstash(name)
+    Goldeneyes.config.stash = name
+    Goldeneyes.echo("Group stash set to: <goldeneyesGold>" .. name)
     cecho("\n<goldeneyesSilver>  (Tip: For accurate payouts, use a dedicated container separate from your personal gold!)\n")
     Goldeneyes.save()
 end
 
--- Move all loose gold to container
-function Goldeneyes.stash()
-    local cont = Goldeneyes.config.container or "pack"
+-- Set physical container for personal gold storage
+function Goldeneyes.setwallet(name)
+    Goldeneyes.config.wallet = name
+    Goldeneyes.echo("Personal wallet set to: <goldeneyesGold>" .. name)
+    Goldeneyes.save()
+end
+
+-- Move all loose gold to the Group Stash
+function Goldeneyes.stash_gold()
+    local cont = Goldeneyes.config.stash or "pack"
     send("queue add eqbal put gold in " .. cont)
     Goldeneyes.echo("Attempting to stash gold in your <goldeneyesGold>" .. cont)
 end
@@ -451,7 +460,7 @@ function Goldeneyes.handle_loot(amt)
     local my_name = (gmcp and gmcp.Char and gmcp.Char.Name and gmcp.Char.Name.name) or "Unknown"
     local my_name_lower = my_name:lower()
     local acc = Goldeneyes.accountant or my_name
-    local cont = Goldeneyes.config.container or "pack"
+    local cont = Goldeneyes.config.stash or "pack"
 
     -- Always add to our local total so the display is useful for everyone!
     Goldeneyes.plus(amt, true)
@@ -553,7 +562,6 @@ end
 -- =========================================================================
 
 -- Master display layout
--- Master display layout
 function Goldeneyes.display()
     local status = Goldeneyes.enabled and "<green>ON<goldeneyesSilver>" or "<red>OFF<goldeneyesSilver>"
     local current_name = (gmcp and gmcp.Char and gmcp.Char.Name and gmcp.Char.Name.name) or "Unknown"
@@ -561,18 +569,25 @@ function Goldeneyes.display()
     local role = (accountant:lower() == current_name:lower()) and "<green>Me<goldeneyesSilver>" or ("<goldeneyesGold>" .. accountant:title() .. "<goldeneyesSilver>")
     local strat_text = (Goldeneyes.config.split_strategy == "even") and "<green>Even<goldeneyesSilver>" or "<yellow>Fair<goldeneyesSilver>"
     local cont = Goldeneyes.config.container or "pack"
+    local wallet = Goldeneyes.config.wallet or "Pouch"
 
-    local elapsed = os.time() - Goldeneyes.starttime
-    if elapsed < 1 then elapsed = 1 end
-    local gph = math.floor((Goldeneyes.total / elapsed) * 3600)
+    -- GPH Calculation Logic
+    local gph_display = "<yellow>Calculating..."
+    if (Goldeneyes.pickup_count or 0) >= 2 and Goldeneyes.first_pickup_time then
+        local elapsed = os.time() - Goldeneyes.first_pickup_time
+        if elapsed >= 60 then
+            local gph = math.floor((Goldeneyes.total / elapsed) * 3600)
+            gph_display = "<goldeneyesGold>" .. Goldeneyes.format(gph)
+        end
+    end
 
     -- Header & Status Bar
     cecho("\n<goldeneyesGold>=======================================================================<reset>")
     cecho("\n<goldeneyesGold>                   G O L D E N E Y E S   L E D G E R                   <reset>")
     cecho("\n<goldeneyesGold>=======================================================================<reset>")
-    cecho(string.format("\n<goldeneyesSilver>  Tracker: [%s] | Split: [%s] | Stash: [<goldeneyesGold>%s<goldeneyesSilver>] | Collector: [%s]", status, strat_text, cont:title(), role))
-    cecho(string.format("\n"))
-    cecho(string.format("\n<goldeneyesCopper>  Total Gold: <goldeneyesGold>%-15s <goldeneyesCopper>Gold/Hour: <goldeneyesGold>%s\n", Goldeneyes.format(Goldeneyes.total), Goldeneyes.format(gph)))
+    cecho(string.format("\n<goldeneyesSilver>  Tracker: [%s] | Split: [%s] | Collector: [%s]", status, strat_text, role))
+    cecho(string.format("\n<goldeneyesSilver>  Group Stash: [<goldeneyesGold>%s<goldeneyesSilver>] | Personal Wallet: [<goldeneyesGold>%s<goldeneyesSilver>]", cont:title(), wallet:title()))
+    cecho(string.format("\n\n<goldeneyesCopper>  Total Gold: <goldeneyesGold>%-15s <goldeneyesCopper>Gold/Hour: %s\n", Goldeneyes.format(Goldeneyes.total), gph_display))
 
     if Goldeneyes.org.name then
         cecho(string.format("  <goldeneyesCopper>City/Org Tax  (<goldeneyesGold>%d%%<goldeneyesSilver>): <goldeneyesGold>%s\n", Goldeneyes.org.percent, Goldeneyes.format(Goldeneyes.org.gold)))
@@ -705,7 +720,7 @@ end
 
 -- Final payout command
 function Goldeneyes.distribute(channel)
-    local cont = Goldeneyes.config.container or "pack"
+    local cont = Goldeneyes.config.stash or "pack"
     local shares = Goldeneyes.get_shares()
     local members = Goldeneyes.count(Goldeneyes.names)
     local my_name = gmcp.Char.Name.name:lower()
@@ -773,7 +788,22 @@ function Goldeneyes.distribute(channel)
         end
     end
 
+    -- Calculate my exact cut to put in the wallet
+    local my_cut = 0
+    if shares[my_name] then my_cut = math.floor(shares[my_name]) end
+    if Goldeneyes.org and Goldeneyes.org.name then
+        my_cut = my_cut + math.floor(Goldeneyes.org.gold)
+    end
+
+    local wallet = Goldeneyes.config.wallet or "none"
+    if wallet:lower() ~= "none" and wallet:lower() ~= "inventory" and my_cut > 0 then
+        tempTimer(delay, function() send("queue add eqbal put " .. my_cut .. " gold in " .. wallet) end)
+    end
+
     Goldeneyes.echo("Distributed gold from <goldeneyesGold>" .. cont)
+    if wallet:lower() ~= "none" and wallet:lower() ~= "inventory" and my_cut > 0 then
+        Goldeneyes.echo("Personal cut (" .. Goldeneyes.format(my_cut) .. " gold) routed to <goldeneyesGold>" .. wallet)
+    end
     cecho("\n\n<goldeneyesSilver>Distribution commands queued. Auto-resetting tracker to prevent double payouts.\n")
     Goldeneyes.confirm_reset()
 end
@@ -881,7 +911,7 @@ function Goldeneyes.create_triggers()
         -- If we have a local debt and we aren't the accountant, a failure message means our handover missed.
         if Goldeneyes.config.autohandover and acc ~= my_name and Goldeneyes.ledger[my_name] and Goldeneyes.ledger[my_name] > 0 then
             Goldeneyes.echo("<red>Handover failed! <goldeneyesSilver>The accountant isn't here. Stashing gold safely.")
-            local cont = Goldeneyes.config.container or "pack"
+            local cont = Goldeneyes.config.stash or "pack"
             if cont:lower() ~= "none" and cont:lower() ~= "inventory" then
                 send("queue add eqbal put gold in " .. cont, false)
             end
@@ -1066,9 +1096,10 @@ function Goldeneyes.help()
     cecho("\n  <goldeneyesGold>gold accountant <name>      <reset>- Designate the collector (Default: You).")
     cecho("\n  <goldeneyesGold>gold autohandover <on|off>  <reset>- Automatically give loot to collector.")
     cecho("\n  <goldeneyesGold>gold autoloot <on|off>      <reset>- Toggle auto-looting.")
-    cecho("\n  <goldeneyesGold>gold container <name>       <reset>- Set loot container (use a dedicated, empty one).")
-    cecho("\n  <goldeneyesGold>gold stash                  <reset>- Move all carried gold to container.")
-    cecho("\n  <goldeneyesGold>gold distribute [channel]   <reset>- Empty container and share gold.")
+    cecho("\n  <goldeneyesGold>gold stash <name>           <reset>- Set Group Stash (use a dedicated, empty one).")
+    cecho("\n  <goldeneyesGold>gold stash                  <reset>- Move all carried gold to Group Stash.")
+    cecho("\n  <goldeneyesGold>gold wallet <name>          <reset>- Set Personal Wallet for your cut (optional).")
+    cecho("\n  <goldeneyesGold>gold distribute [channel]   <reset>- Empty Group Stash and share gold.")
 
     cecho("\n\n<goldeneyesCopper>Advanced Math & Checks:<reset>")
     cecho("\n  <goldeneyesGold>gold calc <amt> <#>         <reset>- Quick math to split an amount of gold.")
@@ -1091,9 +1122,10 @@ end
         elseif cmd == "help" then Goldeneyes.help()
         elseif cmd == "on" or cmd == "off" or cmd == "enabled" or cmd == "disabled" then Goldeneyes.toggle(cmd)
         elseif cmd == "autoloot" then Goldeneyes.togglepickup(args[2] or "")
-        elseif cmd == "container" then 
-            if args[2] then Goldeneyes.setcontainer(args[2]) else cecho("\n<goldeneyesSilver>Usage: <goldeneyesGold>Goldeneyes container <name>") end
-        elseif cmd == "stash" then Goldeneyes.stash()
+        elseif cmd == "stash" then 
+            if args[2] then Goldeneyes.setstash(args[2]) else Goldeneyes.stash_gold() end
+        elseif cmd == "wallet" then 
+            if args[2] then Goldeneyes.setwallet(args[2]) else cecho("\n<goldeneyesSilver>Usage: <goldeneyesGold>gold wallet <name>") end
         elseif cmd == "add" then if args[2] then Goldeneyes.add(args[2]) end
         elseif cmd == "party" or cmd == "group" then Goldeneyes.scan_group()
         elseif cmd == "remove" then if args[2] then Goldeneyes.remove(args[2]) end
