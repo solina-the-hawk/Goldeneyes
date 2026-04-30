@@ -692,29 +692,50 @@ function Goldeneyes.toggle(toggle_cmd)
     if type(Goldeneyes.showprompt) == "function" then Goldeneyes.showprompt() end
 end
 
--- Double-tap reset logic
 -- Warning prompt for manual reset
 function Goldeneyes.reset()
-    cecho("\n<goldeneyesSilver>[<goldeneyesGold>Goldeneyes<goldeneyesSilver>]: <red>WARNING!<goldeneyesSilver> This will wipe ALL data (Total: " .. Goldeneyes.format(Goldeneyes.total) .. ").\n")
-    cecho("<goldeneyesSilver>To proceed, type <goldeneyesGold>Goldeneyes reset confirm<reset>\n")
+    cecho("\n<goldeneyesSilver>[<goldeneyesGold>Goldeneyes<goldeneyesSilver>]: <red>WARNING!<goldeneyesSilver> You are about to reset the tracker (Total: " .. Goldeneyes.format(Goldeneyes.total) .. " gold).\n")
+    cecho("  <goldeneyesSilver>Type <goldeneyesGold>gold reset confirm<reset> to wipe gold totals but KEEP your party roster.\n")
+    cecho("  <goldeneyesSilver>Type <goldeneyesGold>gold reset full<reset> to wipe gold totals AND CLEAR the party roster.\n")
 end
 
 -- Wipes the memory arrays
-function Goldeneyes.confirm_reset()
-    Goldeneyes.names = {}
-    Goldeneyes.paused = {}
+function Goldeneyes.confirm_reset(skip_baseline, clear_roster)
+    if clear_roster then
+        -- Hard Reset: Wipe rosters and org tax
+        Goldeneyes.names = {}
+        Goldeneyes.paused = {}
+        Goldeneyes.org = {name = false, percent = 0, gold = 0}
+        if gmcp.Char and gmcp.Char.Name then Goldeneyes.add(gmcp.Char.Name.name:lower()) end
+    else
+        -- Soft Reset: Just zero out the current members' shares and org gold
+        for k, _ in pairs(Goldeneyes.names) do Goldeneyes.names[k] = 0 end
+        for k, _ in pairs(Goldeneyes.paused) do Goldeneyes.paused[k] = 0 end
+        if Goldeneyes.org then Goldeneyes.org.gold = 0 end
+    end
+
+    -- Always wipe these ledgers
     Goldeneyes.ledger = {}
     Goldeneyes.unknown_ledger = {}
-    Goldeneyes.org = {name = false, percent = 0, gold = 0}
     Goldeneyes.total = 0
     Goldeneyes.expenses = 0
     Goldeneyes.starttime = os.time()
     Goldeneyes.pending_gold = {}
+    Goldeneyes.pickup_count = 0
+    Goldeneyes.first_pickup_time = nil
 
-    if gmcp.Char and gmcp.Char.Name then Goldeneyes.add(gmcp.Char.Name.name) end
-    Goldeneyes.set_baseline()
+    -- Only capture a new baseline if this was a manual reset
+    if not skip_baseline then
+        Goldeneyes.set_baseline()
+    end
+    
     Goldeneyes.save() -- Immediately commit the wipe to the JSON file
-    Goldeneyes.echo("<red>Tracker has been reset.<reset>")
+    
+    if clear_roster then
+        Goldeneyes.echo("<red>Tracker and party roster have been fully wiped.<reset>")
+    else
+        Goldeneyes.echo("<red>Gold totals have been reset (Party roster preserved).<reset>")
+    end
     if type(Goldeneyes.showprompt) == "function" then Goldeneyes.showprompt() end
 end
 
@@ -780,9 +801,10 @@ function Goldeneyes.distribute(channel)
     local delay = 0.5
     for k, v in pairs(shares) do
         if k ~= my_name then
-            v = math.floor(v)
-            if v > 0 then 
-                tempTimer(delay, function() send("queue add eqbal give " .. v .. " gold to " .. k) end)
+            local give_amt = math.floor(v)
+            if give_amt > 0 then 
+                local give_cmd = "queue add eqbal give " .. give_amt .. " gold to " .. k
+                tempTimer(delay, function() send(give_cmd) end)
                 delay = delay + 0.5
             end
         end
@@ -797,7 +819,9 @@ function Goldeneyes.distribute(channel)
 
     local wallet = Goldeneyes.config.wallet or "none"
     if wallet:lower() ~= "none" and wallet:lower() ~= "inventory" and my_cut > 0 then
-        tempTimer(delay, function() send("queue add eqbal put " .. my_cut .. " gold in " .. wallet) end)
+        local put_cmd = "queue add eqbal put " .. my_cut .. " gold in " .. wallet
+        tempTimer(delay, function() send(put_cmd) end)
+        delay = delay + 0.5
     end
 
     Goldeneyes.echo("Distributed gold from <goldeneyesGold>" .. cont)
@@ -805,7 +829,9 @@ function Goldeneyes.distribute(channel)
         Goldeneyes.echo("Personal cut (" .. Goldeneyes.format(my_cut) .. " gold) routed to <goldeneyesGold>" .. wallet)
     end
     cecho("\n\n<goldeneyesSilver>Distribution commands queued. Auto-resetting tracker to prevent double payouts.\n")
-    Goldeneyes.confirm_reset()
+    
+    -- Pass 'true' to skip instant baseline, and 'false' to preserve the party roster!
+    tempTimer(delay, function() Goldeneyes.confirm_reset(true, false) end)
 end
 
 -- =========================================================================
@@ -1134,7 +1160,9 @@ end
         elseif cmd == "pause" then if args[2] then Goldeneyes.pause(args[2]) end
         elseif cmd == "unpause" then if args[2] then Goldeneyes.unpause(args[2]) end
         elseif cmd == "reset" then 
-            if args[2] == "confirm" then Goldeneyes.confirm_reset() else Goldeneyes.reset() end
+            if args[2] == "confirm" then Goldeneyes.confirm_reset(false, false) 
+            elseif args[2] == "full" then Goldeneyes.confirm_reset(false, true)
+            else Goldeneyes.reset() end
         elseif cmd == "distribute" then Goldeneyes.distribute(args[2])
         elseif cmd == "snapshot" then Goldeneyes.start_snapshot()
         elseif cmd == "check" then Goldeneyes.check_reward()
