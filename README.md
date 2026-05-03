@@ -9,6 +9,12 @@ Goldeneyes is an automated gold tracking and distribution utility designed for A
 
 ---
 
+## Screenshots
+<img width="801" height="249" alt="image" src="https://github.com/user-attachments/assets/a614d1aa-191e-4507-81fb-dababe82d2e4" />
+<img width="903" height="836" alt="image" src="https://github.com/user-attachments/assets/7960f960-59df-4714-92f2-f78f4bec4ae8" />
+
+---
+
 ## ✨ Features
 
 * **Smart Party Management:** Automatically add your party members, track their shares, and even pause tracking if someone steps away.
