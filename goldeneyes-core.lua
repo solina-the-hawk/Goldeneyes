@@ -57,6 +57,7 @@ Goldeneyes.baseline = Goldeneyes.baseline or {hand = 0, bank = 0, set = false}
 Goldeneyes.expenses = Goldeneyes.expenses or 0
 Goldeneyes.reset_pending = false
 Goldeneyes.pending_gold = Goldeneyes.pending_gold or {}
+Goldeneyes.org = Goldeneyes.org or {name = false, percent = 0, gold = 0, mode = "pot"}
 
 local my_name = (gmcp and gmcp.Char and gmcp.Char.Name and gmcp.Char.Name.name) or "Unknown"
 Goldeneyes.accountant = Goldeneyes.accountant or my_name
@@ -195,13 +196,38 @@ function Goldeneyes.get_shares()
     local count = Goldeneyes.count(Goldeneyes.names)
     if count == 0 then return shares end
     
+    local my_name = (gmcp and gmcp.Char and gmcp.Char.Name and gmcp.Char.Name.name:lower()) or "unknown"
+
     if Goldeneyes.config.split_strategy == "even" then
-        local net_pool = Goldeneyes.total - Goldeneyes.org.gold
+        -- Dynamically calculate the org's cut for Even splits to ensure accuracy
+        if Goldeneyes.org.name then
+            if Goldeneyes.org.mode == "pot" then
+                Goldeneyes.org.gold = Goldeneyes.total * (Goldeneyes.org.percent / 100)
+            elseif Goldeneyes.org.mode == "personal" and Goldeneyes.names[my_name] then
+                local base_even_share = Goldeneyes.total / count
+                Goldeneyes.org.gold = base_even_share * (Goldeneyes.org.percent / 100)
+            else
+                Goldeneyes.org.gold = 0
+            end
+        else
+            Goldeneyes.org.gold = 0
+        end
+
+        local net_pool = Goldeneyes.total
+        if Goldeneyes.org.name and Goldeneyes.org.mode == "pot" then
+            net_pool = net_pool - Goldeneyes.org.gold
+        end
+
         local even_share = net_pool / count
         for k, _ in pairs(Goldeneyes.names) do
-            shares[k] = even_share
+            if k == my_name and Goldeneyes.org.name and Goldeneyes.org.mode == "personal" then
+                shares[k] = even_share - Goldeneyes.org.gold
+            else
+                shares[k] = even_share
+            end
         end
     else 
+        -- 'Fair' strategy relies on iteratively tracked values
         for k, v in pairs(Goldeneyes.names) do
             shares[k] = v
         end
@@ -213,17 +239,26 @@ end
 function Goldeneyes.plus(amt, noecho)
     local original_amt = amt
     local x = Goldeneyes
+    local my_name = (gmcp and gmcp.Char and gmcp.Char.Name and gmcp.Char.Name.name:lower()) or "unknown"
 
-    if x.org.name then
-        x.org.gold = x.org.gold + original_amt * (x.org.percent/100)
-        amt = original_amt * ( 1 - x.org.percent/100)
+    local pot_cut = 0
+    if x.org.name and x.org.mode == "pot" then
+        pot_cut = original_amt * (x.org.percent/100)
+        x.org.gold = x.org.gold + pot_cut
+        amt = original_amt - pot_cut
     end
 
     local num = Goldeneyes.count(x.names)
     if num > 0 then
         local split_share = amt / num
-        for k, v in pairs (x.names) do
-            x.names[k] = v + split_share
+        for k, v in pairs(x.names) do
+            if k == my_name and x.org.name and x.org.mode == "personal" then
+                local personal_cut = split_share * (x.org.percent/100)
+                x.org.gold = x.org.gold + personal_cut
+                x.names[k] = v + (split_share - personal_cut)
+            else
+                x.names[k] = v + split_share
+            end
         end
     end
 
@@ -234,21 +269,33 @@ end
 
 -- Manually subtract gold from the total pool.
 function Goldeneyes.minus(amt)
+    local original_amt = amt
     local x = Goldeneyes
-    local i = amt
-    if x.org.name then
-        x.org.gold =  x.org.gold - i * (x.org.percent/100)
-        i = i * ( 1 - x.org.percent/100)
+    local my_name = (gmcp and gmcp.Char and gmcp.Char.Name and gmcp.Char.Name.name:lower()) or "unknown"
+
+    local pot_cut = 0
+    if x.org.name and x.org.mode == "pot" then
+        pot_cut = original_amt * (x.org.percent/100)
+        x.org.gold = x.org.gold - pot_cut
+        amt = original_amt - pot_cut
     end
 
     local num = x.count(x.names)
     if num > 0 then
-        local split_share = i / num
-        for k, v in pairs (x.names) do x.names[k] = v - split_share end
+        local split_share = amt / num
+        for k, v in pairs (x.names) do 
+            if k == my_name and x.org.name and x.org.mode == "personal" then
+                local personal_cut = split_share * (x.org.percent/100)
+                x.org.gold = x.org.gold - personal_cut
+                x.names[k] = v - (split_share - personal_cut)
+            else
+                x.names[k] = v - split_share 
+            end
+        end
     end
 
-    x.total = x.total - amt
-    x.echo("<goldeneyesGold>" .. Goldeneyes.format(amt) .. " <goldeneyesSilver>gold removed.")
+    x.total = x.total - original_amt
+    x.echo("<goldeneyesGold>" .. Goldeneyes.format(original_amt) .. " <goldeneyesSilver>gold removed.")
     if type(x.showprompt) == "function" then x.showprompt() end
 end
 
@@ -408,6 +455,32 @@ function Goldeneyes.ignore_pending(name)
     end
 end
 
+-- Set the organizational share/tax
+function Goldeneyes.set_org(name, percent, mode)
+    if not name or name:lower() == "off" or name:lower() == "none" then
+        Goldeneyes.org = {name = false, percent = 0, gold = 0, mode = "pot"}
+        Goldeneyes.echo("Organization share <red>DISABLED<goldeneyesSilver>.")
+        return
+    end
+
+    percent = tonumber(percent)
+    if not percent or percent <= 0 or percent > 100 then
+        Goldeneyes.echo("<goldeneyesSilver>Usage: <goldeneyesGold>gold org <name> <percent> [pot|personal]")
+        return
+    end
+
+    mode = mode and mode:lower() or "pot"
+    if mode ~= "pot" and mode ~= "personal" then mode = "pot" end
+
+    Goldeneyes.org.name = name:title()
+    Goldeneyes.org.percent = percent
+    Goldeneyes.org.mode = mode
+
+    Goldeneyes.echo(string.format("Organization share set for <goldeneyesGold>%s<goldeneyesSilver>.", name:title()))
+    cecho(string.format("\n  <goldeneyesSilver>Deducting <goldeneyesGold>%d%%<goldeneyesSilver> from the <goldeneyesGold>%s<goldeneyesSilver>.", percent, mode))
+    Goldeneyes.save()
+end
+
 -- =========================================================================
 -- Inventory & Loot Management
 -- Controls movement of gold around the inventory, where to stash things, and
@@ -415,25 +488,55 @@ end
 -- =========================================================================
 
 -- Set physical container for group gold storage
-function Goldeneyes.setstash(name)
-    Goldeneyes.config.stash = name
-    Goldeneyes.echo("Group stash set to: <goldeneyesGold>" .. name)
+function Goldeneyes.setstash(input)
+    Goldeneyes.config.stash = input
+    if input:find("/") then
+        Goldeneyes.echo("Group stash set to custom sequence: <goldeneyesGold>" .. input)
+    else
+        Goldeneyes.echo("Group stash set to: <goldeneyesGold>" .. input)
+    end
     cecho("\n<goldeneyesSilver>  (Tip: For accurate payouts, use a dedicated container separate from your personal gold!)\n")
     Goldeneyes.save()
 end
 
 -- Set physical container for personal gold storage
-function Goldeneyes.setwallet(name)
-    Goldeneyes.config.wallet = name
-    Goldeneyes.echo("Personal wallet set to: <goldeneyesGold>" .. name)
+function Goldeneyes.setwallet(input)
+    Goldeneyes.config.wallet = input
+    if input:find("/") then
+        Goldeneyes.echo("Personal wallet set to custom sequence: <goldeneyesGold>" .. input)
+    else
+        Goldeneyes.echo("Personal wallet set to: <goldeneyesGold>" .. input)
+    end
     Goldeneyes.save()
+end
+
+-- Executes a custom storage sequence, replacing <amount> with the exact gold value
+function Goldeneyes.store_custom(sequence, amount)
+    -- If no specific amount is passed, default to all "gold"
+    amount = amount or "gold"
+    
+    -- Replace the placeholder with the actual amount
+    local parsed_sequence = sequence:gsub("<amount>", tostring(amount))
+    
+    -- Split by the slash separator and send sequentially
+    local commands = parsed_sequence:split("/")
+    for _, cmd in ipairs(commands) do
+        -- Trim leading and trailing whitespace for a clean command
+        cmd = cmd:gsub("^%s+", ""):gsub("%s+$", "")
+        send("queue add eqbal " .. cmd)
+    end
 end
 
 -- Move all loose gold to the Group Stash
 function Goldeneyes.stash_gold()
     local cont = Goldeneyes.config.stash or "pack"
-    send("queue add eqbal put gold in " .. cont)
-    Goldeneyes.echo("Attempting to stash gold in your <goldeneyesGold>" .. cont)
+    if cont:find("/") then
+        Goldeneyes.store_custom(cont, "gold")
+        Goldeneyes.echo("Attempting to stash gold using custom sequence.")
+    else
+        send("queue add eqbal put gold in " .. cont)
+        Goldeneyes.echo("Attempting to stash gold in your <goldeneyesGold>" .. cont)
+    end
 end
 
 -- Toggle automatic scooping
@@ -469,7 +572,11 @@ function Goldeneyes.handle_loot(amt)
         Goldeneyes.echo("Gold added to ledger. New total is <goldeneyesGold>" .. Goldeneyes.format(Goldeneyes.total) .. "<goldeneyesSilver> gold.")
         
         if cont:lower() ~= "none" and cont:lower() ~= "inventory" then
-            send("queue add eqbal put " .. amt .. " gold in " .. cont, false)
+            if cont:find("/") then
+                Goldeneyes.store_custom(cont, amt)
+            else
+                send("queue add eqbal put " .. amt .. " gold in " .. cont, false)
+            end
         end
     else
         -- We are NOT the accountant. Add to our local debt until we successfully hand it over.
@@ -482,7 +589,11 @@ function Goldeneyes.handle_loot(amt)
             send("pt I picked up " .. Goldeneyes.format(amt) .. " gold.")
             Goldeneyes.echo("Looted <goldeneyesGold>"..Goldeneyes.format(amt).."<goldeneyesSilver>. Kept locally (Added to Debt).")
             if cont:lower() ~= "none" and cont:lower() ~= "inventory" then
-                send("queue add eqbal put " .. amt .. " gold in " .. cont, false)
+                if cont:find("/") then
+                    Goldeneyes.store_custom(cont, amt)
+                else
+                    send("queue add eqbal put " .. amt .. " gold in " .. cont, false)
+                end
             end
         end
     end
@@ -590,7 +701,8 @@ function Goldeneyes.display()
     cecho(string.format("\n\n<goldeneyesCopper>  Total Gold: <goldeneyesGold>%-15s <goldeneyesCopper>Gold/Hour: %s\n", Goldeneyes.format(Goldeneyes.total), gph_display))
 
     if Goldeneyes.org.name then
-        cecho(string.format("  <goldeneyesCopper>City/Org Tax  (<goldeneyesGold>%d%%<goldeneyesSilver>): <goldeneyesGold>%s\n", Goldeneyes.org.percent, Goldeneyes.format(Goldeneyes.org.gold)))
+        local mode_text = (Goldeneyes.org.mode == "personal") and "Personal Share" or "Total Pot"
+        cecho(string.format("  <goldeneyesCopper>%s Share  (<goldeneyesGold>%d%%<goldeneyesSilver> of %s): <goldeneyesGold>%s\n", Goldeneyes.org.name, Goldeneyes.org.percent, mode_text, Goldeneyes.format(Goldeneyes.org.gold)))
     end
 
     -- Active Shares Section
@@ -819,8 +931,13 @@ function Goldeneyes.distribute(channel)
 
     local wallet = Goldeneyes.config.wallet or "none"
     if wallet:lower() ~= "none" and wallet:lower() ~= "inventory" and my_cut > 0 then
-        local put_cmd = "queue add eqbal put " .. my_cut .. " gold in " .. wallet
-        tempTimer(delay, function() send(put_cmd) end)
+        tempTimer(delay, function() 
+            if wallet:find("/") then
+                Goldeneyes.store_custom(wallet, my_cut)
+            else
+                send("queue add eqbal put " .. my_cut .. " gold in " .. wallet)
+            end
+        end)
         delay = delay + 0.5
     end
 
@@ -955,8 +1072,14 @@ function Goldeneyes.create_triggers()
     -- Trigger: Gold Dropped (Grab It)
     local grab_script = [[ 
         if Goldeneyes.enabled and Goldeneyes.config.pickup then 
-            Goldeneyes.echo("Scooping loose gold.")
-            send("queue add eqbal get gold", false) 
+            -- Clear any existing timer to prevent multi-queueing if several mobs die at once
+            if Goldeneyes.loot_timer then killTimer(Goldeneyes.loot_timer) end
+            
+            -- Delay by 0.3 seconds to dodge the bashing script's 'queue clear'
+            Goldeneyes.loot_timer = tempTimer(0.3, function()
+                Goldeneyes.echo("Scooping loose gold.")
+                send("queue add eqbal get gold", false) 
+            end)
         end 
     ]]
     local grab_regex = "(?:^A.*sovereigns? spills? from the corpse|A pile of golden sovereigns twinkles and gleams\\.|There is.*pile of golden sovereigns here\\.|pile of .*sovereigns?)"
@@ -1116,6 +1239,8 @@ function Goldeneyes.help()
     cecho("\n  <goldeneyesGold>gold remove <name>          <reset>- Remove a person from the list.")
     cecho("\n  <goldeneyesGold>gold pause <name>           <reset>- Pause tracking for a member.")
     cecho("\n  <goldeneyesGold>gold unpause <name>         <reset>- Resume tracking for a member.")
+    cecho("\n  <goldeneyesGold>gold org <name> <%> [pot|personal] <reset>- Set an organization share.")
+    cecho("\n  <goldeneyesGold>gold org off                <reset>- Disable organization share.")
 
     cecho("\n\n<goldeneyesCopper>Loot & Accounting Automation:<reset>")
     cecho("\n  <goldeneyesGold>gold alerts <on|off>        <reset>- Toggle clickable party join/leave prompts.")
@@ -1149,9 +1274,11 @@ end
         elseif cmd == "on" or cmd == "off" or cmd == "enabled" or cmd == "disabled" then Goldeneyes.toggle(cmd)
         elseif cmd == "autoloot" then Goldeneyes.togglepickup(args[2] or "")
         elseif cmd == "stash" then 
-            if args[2] then Goldeneyes.setstash(args[2]) else Goldeneyes.stash_gold() end
+            local input = string.match(args_str, "^stash%s+(.+)$")
+            if input then Goldeneyes.setstash(input) else Goldeneyes.stash_gold() end
         elseif cmd == "wallet" then 
-            if args[2] then Goldeneyes.setwallet(args[2]) else cecho("\n<goldeneyesSilver>Usage: <goldeneyesGold>gold wallet <name>") end
+            local input = string.match(args_str, "^wallet%s+(.+)$")
+            if input then Goldeneyes.setwallet(input) else cecho("\n<goldeneyesSilver>Usage: <goldeneyesGold>gold wallet <name or custom string>") end
         elseif cmd == "add" then if args[2] then Goldeneyes.add(args[2]) end
         elseif cmd == "party" or cmd == "group" then Goldeneyes.scan_group()
         elseif cmd == "remove" then if args[2] then Goldeneyes.remove(args[2]) end
@@ -1182,6 +1309,9 @@ end
                 Goldeneyes.load()
                 cecho("\n<goldeneyesSilver>[<goldeneyesGold>Goldeneyes<goldeneyesSilver>]: Profile loaded successfully.\n")
             end
+        elseif cmd == "autohandover" then Goldeneyes.toggle_handover(args[2] or "")
+        elseif cmd == "org" then Goldeneyes.set_org(args[2], args[3], args[4]) -- NEW ADDITION HERE
+        elseif cmd == "strategy" then Goldeneyes.set_strategy(args[2])
         elseif cmd == "calc" then Goldeneyes.calc(args[2], args[3])
         else cecho("\n<goldeneyesSilver>Unknown command. Try <goldeneyesGold>Goldeneyes help<goldeneyesSilver>.") end
     ]]))
