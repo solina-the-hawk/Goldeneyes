@@ -765,7 +765,7 @@ function Goldeneyes.display()
     cecho(string.format("\n<goldeneyesSilver>  Group Stash: [<goldeneyesGold>%s<goldeneyesSilver>] | Personal Wallet: [<goldeneyesGold>%s<goldeneyesSilver>]", cont_display, wallet_display))
     
     if cont:find("/") or wallet:find("/") then
-        cecho("\n<grey>  (Custom sequences active. Use <goldeneyesGold>gold stash <name><grey> or <goldeneyesGold>gold wallet <name><grey> to edit)")
+        cecho("\n<grey>  (Use <goldeneyesGold>gold stash <name><grey> or <goldeneyesGold>gold wallet <name><grey> to edit custom sequences)")
     end
 
     -- The Dynamic Pot Display
