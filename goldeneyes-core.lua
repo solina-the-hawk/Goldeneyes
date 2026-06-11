@@ -236,7 +236,7 @@ function Goldeneyes.get_shares()
     return shares
 end
 
--- Manually add gold to the total pool.
+-- Add gold to the total pool.
 function Goldeneyes.plus(amt, noecho)
     local original_amt = amt
     local x = Goldeneyes
@@ -264,6 +264,11 @@ function Goldeneyes.plus(amt, noecho)
     end
 
     x.total = x.total + original_amt
+    
+    -- GPH Trackers (Missing Incrementors Added Here)
+    x.pickup_count = (x.pickup_count or 0) + 1
+    x.first_pickup_time = x.first_pickup_time or os.time()
+    
     if not noecho then x.echo("<goldeneyesGold>" .. Goldeneyes.format(original_amt) .. " <goldeneyesSilver>gold added.") end
     if type(x.showprompt) == "function" then x.showprompt() end
 end
