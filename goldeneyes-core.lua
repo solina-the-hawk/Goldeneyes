@@ -136,7 +136,8 @@ function Goldeneyes.load()
     local file = io.open(filepath, "r")
     
     if not file then
-        Goldeneyes.echo("<red>(Error)<reset>: No Goldeneyes_Profile.json found to load! Type <yellow>Goldeneyes profile save<reset> to create one.")
+        Goldeneyes.echo("No existing profile found. Generating a new default profile...")
+        Goldeneyes.save()
         return 
     end
 
@@ -234,6 +235,13 @@ function Goldeneyes.plus(amt, noecho)
     local x = Goldeneyes
     local my_name = (gmcp and gmcp.Char and gmcp.Char.Name and gmcp.Char.Name.name:lower()) or "unknown"
 
+    -- Safety Net: Auto-add the user if the tracker is empty so iterative gold isn't lost
+    local num = Goldeneyes.count(x.names)
+    if num == 0 and my_name ~= "unknown" then
+        Goldeneyes.add(my_name)
+        num = 1
+    end
+
     local pot_cut = 0
     if x.org.name and x.org.mode == "pot" then
         pot_cut = original_amt * (x.org.percent/100)
@@ -241,7 +249,6 @@ function Goldeneyes.plus(amt, noecho)
         amt = original_amt - pot_cut
     end
 
-    local num = Goldeneyes.count(x.names)
     if num > 0 then
         local split_share = amt / num
         for k, v in pairs(x.names) do
@@ -270,6 +277,13 @@ function Goldeneyes.minus(amt)
     local x = Goldeneyes
     local my_name = (gmcp and gmcp.Char and gmcp.Char.Name and gmcp.Char.Name.name:lower()) or "unknown"
 
+    -- Safety Net: Auto-add the user if the tracker is empty
+    local num = x.count(x.names)
+    if num == 0 and my_name ~= "unknown" then
+        Goldeneyes.add(my_name)
+        num = 1
+    end
+
     local pot_cut = 0
     if x.org.name and x.org.mode == "pot" then
         pot_cut = original_amt * (x.org.percent/100)
@@ -277,7 +291,6 @@ function Goldeneyes.minus(amt)
         amt = original_amt - pot_cut
     end
 
-    local num = x.count(x.names)
     if num > 0 then
         local split_share = amt / num
         for k, v in pairs (x.names) do 
@@ -1343,7 +1356,7 @@ function Goldeneyes.help()
     if type(Goldeneyes.showprompt) == "function" then Goldeneyes.showprompt() end
 end
 
-    table.insert(Goldeneyes.alias_ids, tempAlias("^(?:Goldeneyes|gold)(?:\\s+(.*))?$", 
+    table.insert(Goldeneyes.alias_ids, tempAlias("^(?i)(?:Goldeneyes|gold)(?:\\s+(.*))?$", 
     [[
         local args_str = matches[2] or ""
         local args = args_str:split(" ")
