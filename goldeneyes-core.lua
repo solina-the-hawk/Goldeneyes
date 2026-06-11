@@ -738,8 +738,10 @@ function Goldeneyes.display()
     local accountant = Goldeneyes.accountant or current_name
     local role = (accountant:lower() == current_name:lower()) and "<green>Me<goldeneyesSilver>" or ("<goldeneyesGold>" .. accountant:title() .. "<goldeneyesSilver>")
     local strat_text = (Goldeneyes.config.split_strategy == "even") and "<green>Even<goldeneyesSilver>" or "<yellow>Fair<goldeneyesSilver>"
-    local cont = Goldeneyes.config.container or "pack"
+    local cont = Goldeneyes.config.stash or "pack"
     local wallet = Goldeneyes.config.wallet or "Pouch"
+
+    local unknown_count = Goldeneyes.count(Goldeneyes.unknown_ledger)
 
     -- GPH Calculation Logic
     local gph_display = "<yellow>Calculating..."
@@ -766,8 +768,14 @@ function Goldeneyes.display()
         cecho("\n<grey>  (Custom sequences active. Use <goldeneyesGold>gold stash <name><grey> or <goldeneyesGold>gold wallet <name><grey> to edit)")
     end
 
-    cecho(string.format("\n\n<goldeneyesCopper>  Total Gold: <goldeneyesGold>%-15s <goldeneyesCopper>Gold/Hour: %s\n", Goldeneyes.format(Goldeneyes.total), gph_display))
+    -- The Dynamic Pot Display
+    cecho("\n\n<goldeneyesCopper>  Group Pot: <goldeneyesGold>" .. Goldeneyes.format(Goldeneyes.total))
+    if unknown_count > 0 then
+        cecho(" <red>(+ Unknown Piles!)")
+    end
+    cecho("   <goldeneyesCopper>Gold/Hour: " .. gph_display .. "\n")
 
+    -- Org Tax
     if Goldeneyes.org.name then
         local mode_text = (Goldeneyes.org.mode == "personal") and "Personal Share" or "Total Pot"
         cecho(string.format("  <goldeneyesCopper>%s Share  (<goldeneyesGold>%d%%<goldeneyesSilver> of %s): <goldeneyesGold>%s\n", Goldeneyes.org.name, Goldeneyes.org.percent, mode_text, Goldeneyes.format(Goldeneyes.org.gold)))
@@ -778,7 +786,7 @@ function Goldeneyes.display()
 
     -- Active Shares Section
     if Goldeneyes.count(Goldeneyes.names) > 0 then 
-        cecho("\n<goldeneyesCopper>  Active Shares:<reset>\n") 
+        cecho("\n<goldeneyesCopper>  Current Share Breakdown:<reset>\n") 
         local shares = Goldeneyes.get_shares()
         for k, v in pairs(shares) do
             cecho("  <goldeneyesSilver>" .. string.format("%14s", k:title()) .. ": <goldeneyesGold>" .. Goldeneyes.format(v) .. "\n")
@@ -787,12 +795,11 @@ function Goldeneyes.display()
         cecho("\n<goldeneyesSilver>  No members currently tracked. Use <goldeneyesGold>gold group<goldeneyesSilver> to add.\n")
     end
 
-    -- Debts & Unknowns Section
+    -- Held Gold & Unknowns Section
     local ledger_count = Goldeneyes.count(Goldeneyes.ledger)
-    local unknown_count = Goldeneyes.count(Goldeneyes.unknown_ledger)
 
     if ledger_count > 0 or unknown_count > 0 then
-        cecho("\n<goldeneyesCopper>  Pending Debts & Held Gold:<reset>\n")
+        cecho("\n<goldeneyesCopper>  Uncollected Group Gold (Held by Members):<reset>\n")
         local all_holders = {}
         for k,v in pairs(Goldeneyes.ledger) do all_holders[k] = true end
         for k,v in pairs(Goldeneyes.unknown_ledger) do all_holders[k] = true end
@@ -803,7 +810,10 @@ function Goldeneyes.display()
             local str = string.format("  <goldeneyesSilver>%14s: ", k:title())
 
             if debt > 0 then str = str .. "<orange>" .. Goldeneyes.format(debt) .. " gold " end
-            if unknown > 0 then str = str .. "<red>(+" .. unknown .. " unknown piles!)" end
+            if unknown > 0 then 
+                if debt > 0 then str = str .. "<goldeneyesSilver>and " end
+                str = str .. "<red>" .. unknown .. " unknown pile(s)" 
+            end
             cecho(str .. "\n")
         end
     end
