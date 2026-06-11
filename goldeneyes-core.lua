@@ -1082,19 +1082,18 @@ function Goldeneyes.create_triggers()
     Goldeneyes.alias_ids = {}
 
     -- Trigger: Mystery Gold Pickups (Artifacts)
-    table.insert(Goldeneyes.trigger_ids, tempRegexTrigger("^Some gold falls from the corpse and automatically flies into the hands of (\\w+)\\.", 
+    table.insert(Goldeneyes.trigger_ids, tempRegexTrigger("(?:gold|sovereigns).* fl(?:ies|ying) into the hands of (\\w+)\\.", 
     [[
-        local name_key = matches[2]:lower()
+        local name = matches[1]
+        local name_key = name:lower()
+        
         if Goldeneyes.names[name_key] then
             Goldeneyes.unknown_ledger[name_key] = (Goldeneyes.unknown_ledger[name_key] or 0) + 1
-            cecho(string.format("\n<red>[ALERT]: %s picked up a MYSTERY pile of gold! (Auto-loot artifact detected)", matches[2]))
-            cecho("\n<red>       Please ask them how much they got and use 'Goldeneyes plus <amount>'.")
+            cecho(string.format("\n<goldeneyesSilver>[<goldeneyesGold>Goldeneyes<goldeneyesSilver>]: <red>[ALERT]<reset>: %s picked up a MYSTERY pile of gold! (Attractor artifact)", name))
+            cecho(string.format("\n<goldeneyesSilver>       Please ask them how much they got and use '<goldeneyesGold>gold plus <amount><goldeneyesSilver>'.\n"))
+        else
+            cecho(string.format("\n<goldeneyesSilver>[<goldeneyesGold>Goldeneyes<goldeneyesSilver>]: <red>[ALERT]<reset>: An untracked person (%s) just auto-looted mystery gold!\n", name))
         end
-    ]]))
-
-    table.insert(Goldeneyes.trigger_ids, tempRegexTrigger("^.*sovereigns spills from the corpse, flying into the hands of.*", 
-    [[
-        cecho("\n<red>[ALERT]: Someone's artifact just auto-looted a MYSTERY pile of gold!<reset>")
     ]]))
 
     -- Trigger: Shop Purchases & Expenses
