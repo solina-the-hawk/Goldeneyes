@@ -23,7 +23,7 @@ Goldeneyes.config = Goldeneyes.config or {
     -- autohandover: Whether or not to default to handing gold over immediately to the accountant.
     autohandover = false,
     -- loot_delay: How many seconds to wait before auto-looting to avoid bashing script queue-clears.
-    loot_delay = 0.8,
+    loot_delay = 0.5,
     -- split_strategy: What split strategy we prefer for distributing earned gold. Even is most common.
     split_strategy = "even",
     -- party_alerts:Whether to alert you with clickable prompts when party members join/leave 
