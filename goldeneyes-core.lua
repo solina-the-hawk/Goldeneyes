@@ -1422,7 +1422,7 @@ function Goldeneyes.help()
     cecho("\n  <goldeneyesGold>gold groupscan              <reset>- Auto-add party, group, and intrepid members.")
     cecho("\n  <goldeneyesGold>gold add|remove <name>      <reset>- Add or remove a person from the split list.")
     cecho("\n  <goldeneyesGold>gold pause|unpause <name>   <reset>- Pause or resume tracking for a member.")
-    cecho("\n  <goldeneyesGold>gold org <name> <%> [pot|personal] <reset>- Set an organization share.")
+    cecho("\n  <goldeneyesGold>gold org <name> <%> [pot|personal] <reset>- Set an organization share. Use 'off' in place of a name to disable.")
     cecho("\n  <goldeneyesGold>gold org deposit [name|all] <reset>- Clear accumulated org funds after banking.")
     cecho("\n  <goldeneyesGold>gold org off                <reset>- Disable organization share.")
 
