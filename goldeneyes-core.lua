@@ -201,13 +201,33 @@ function Goldeneyes.get_shares()
     if Goldeneyes.config.split_strategy == "even" then
         local total_personal_tax = (Goldeneyes.secured_tax and Goldeneyes.secured_tax.personal or 0)
 
+        -- 1. Pre-calculate the active player pool sum first
+        local player_pool = 0
+        for k, v in pairs(Goldeneyes.names) do 
+            player_pool = player_pool + v 
+        end
+
         if Goldeneyes.org.name then
             local taxable = Goldeneyes.org.taxable_base or 0
             if Goldeneyes.org.mode == "pot" then
+                -- Pot tax legitimately applies to the historic total, unaffected by members leaving
                 Goldeneyes.org.gold = taxable * (Goldeneyes.org.percent / 100)
             elseif Goldeneyes.org.mode == "personal" and Goldeneyes.names[my_name] then
-                local base_even_share = taxable / count
-                Goldeneyes.org.gold = base_even_share * (Goldeneyes.org.percent / 100)
+                -- Personal tax dynamically reverses the net balances to find the TRUE active gross
+                local tax_decimal = Goldeneyes.org.percent / 100
+                local divisor = count - tax_decimal
+                local base_even_share = 0
+                
+                -- Failsafe for mathematically impossible 100% personal tax while solo
+                if divisor <= 0 then
+                    base_even_share = taxable / count
+                else
+                    base_even_share = player_pool / divisor
+                end
+
+                local total_tax_burden = base_even_share * tax_decimal
+                Goldeneyes.org.gold = math.max(0, total_tax_burden - total_personal_tax)
+                
                 total_personal_tax = total_personal_tax + Goldeneyes.org.gold
             else
                 Goldeneyes.org.gold = 0
@@ -216,11 +236,6 @@ function Goldeneyes.get_shares()
             Goldeneyes.org.gold = 0
         end
 
-        local player_pool = 0
-        for k, v in pairs(Goldeneyes.names) do 
-            player_pool = player_pool + v 
-        end
-        
         player_pool = player_pool + total_personal_tax
 
         local even_share = player_pool / count
@@ -1247,19 +1262,41 @@ function Goldeneyes.distribute(channel)
     local members = Goldeneyes.count(Goldeneyes.names)
     local my_name = gmcp.Char.Name.name:lower()
     
-    local total_withdraw = 0
+    -- 1. Calculate Physical Withdrawals & Unallocated Remainder
+    local total_secured = (Goldeneyes.secured_tax and (Goldeneyes.secured_tax.personal + Goldeneyes.secured_tax.pot)) or 0
+    local total_withdraw = math.floor(Goldeneyes.total - total_secured)
+    
+    local actual_allocated = 0
     for k, v in pairs(shares) do
-        total_withdraw = total_withdraw + math.floor(v)
+        actual_allocated = actual_allocated + math.floor(v)
     end
-    
     if Goldeneyes.org and Goldeneyes.org.name then
-        total_withdraw = total_withdraw + math.floor(Goldeneyes.org.gold)
+        actual_allocated = actual_allocated + math.floor(Goldeneyes.org.gold)
     end
     
+    local physical_unallocated = total_withdraw - actual_allocated
+    
+    -- 2. Pull all gold from the group stash
     if cont:lower() ~= "none" and cont:lower() ~= "inventory" and total_withdraw > 0 then
-        send("queue add eqbal get " .. total_withdraw .. " gold from " .. cont)
+        if cont:find("/") then
+            local commands = cont:split("/")
+            for _, cmd in ipairs(commands) do
+                cmd = cmd:gsub("^%s+", ""):gsub("%s+$", "")
+                if cmd:find("<amount>") then
+                    cmd = cmd:gsub("^put ", "get ")
+                    cmd = cmd:gsub(" put ", " get ")
+                    cmd = cmd:gsub(" in ", " from ")
+                    cmd = cmd:gsub(" into ", " from ")
+                    cmd = cmd:gsub("<amount>", tostring(total_withdraw))
+                end
+                send("queue add eqbal " .. cmd)
+            end
+        else
+            send("queue add eqbal get " .. total_withdraw .. " gold from " .. cont)
+        end
     end
     
+    -- 3. Broadcast Announcements
     channel = channel and channel:lower() or "party"
     local cmd = "pt"
     local message = ""
@@ -1302,6 +1339,7 @@ function Goldeneyes.distribute(channel)
         send(cmd .. " " .. message)
     end
 
+    -- 4. Queue the Handouts & Stashing
     local delay = 0.5
     for k, v in pairs(shares) do
         if k ~= my_name then
@@ -1343,12 +1381,20 @@ function Goldeneyes.distribute(channel)
         delay = delay + 0.5
     end
 
+    -- 5. Print Summary & Reset
     Goldeneyes.echo("Distributed gold from <goldeneyesGold>" .. cont)
     if pure_my_cut > 0 and p_cont:lower() ~= "none" and p_cont:lower() ~= "inventory" then
         Goldeneyes.echo("Personal cut routed to <goldeneyesGold>" .. p_cont)
     end
     if org_cut > 0 and o_cont:lower() ~= "none" and o_cont:lower() ~= "inventory" then
         Goldeneyes.echo("Org tax routed to <goldeneyesGold>" .. o_cont)
+    end
+    
+    if physical_unallocated > 0 then
+        -- Delay the final note so it prints after the server finishes processing the stow commands
+        tempTimer(delay + 0.5, function()
+            Goldeneyes.echo("<orange>" .. Goldeneyes.format(physical_unallocated) .. " <goldeneyesSilver>unallocated gold left in inventory.")
+        end)
     end
     
     Goldeneyes.confirm_reset(true, false)
