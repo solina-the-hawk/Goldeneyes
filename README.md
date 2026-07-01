@@ -12,10 +12,6 @@ Goldeneyes is an automated gold tracking and distribution utility designed for A
 ## Screenshots
 <img width="814" height="443" alt="image" src="https://github.com/user-attachments/assets/f4688f15-4b52-4555-848b-c6216aa83120" />
 
-<img width="1067" height="365" alt="goldeneyes-quick-setup" src="https://github.com/user-attachments/assets/0777ece0-1162-4953-9384-b79fdf480e4f" />
-
-<img width="1032" height="1058" alt="goldeneyes-help-display" src="https://github.com/user-attachments/assets/02d33927-8a6b-4383-b09c-254e68887181" />
-
 ---
 
 ## ✨ Features
