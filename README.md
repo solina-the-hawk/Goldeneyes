@@ -5,7 +5,7 @@
 Goldeneyes is an automated gold tracking and distribution utility designed for Achaea. It seamlessly manages party splits, auto-looting, and hidden reward math, allowing hunting leaders to focus on combat instead of complex accounting.
 
 **Author:** Solina  
-**Version:** 1.3.0
+**Version:** 1.4.0
 
 ---
 
@@ -22,14 +22,16 @@ Goldeneyes is an automated gold tracking and distribution utility designed for A
 
 * **Interactive Setup Dashboard:** Type `gold setup` for a clickable, easy-to-use configuration menu to get your ledger ready in seconds.
 * **Smart Party Management:** Automatically add your party members, track their shares, and even pause tracking if someone steps away.
-* **Organizational Share (Tax):** Easily set a percentage cut for your City, House, or Order. Goldeneyes can calculate this dynamically from the total group pot or from your personal share alone. Tracks multiple org debts safely!
-* **Nested Container Support (Anti-Theft):** Keep your gold safe from Achaean thieves by defining custom storage sequences for your stash or wallet (e.g., `get pouch from pack / put <amount> gold in pouch / put pouch in pack`). 
+* **Organizational Share & Banking:** Easily set a percentage cut for your City, House, or Order. Goldeneyes tracks these debts safely and can automatically execute bank deposits (gold org deposit) when you reach a bank room!
+* **Smart 3-Tier Container System:** Keep your gold safe from Achaean thieves and perfectly organized. Define custom storage sequences for your Group stash, Personal wallet, and Org tax containers. Supports nested anti-theft sequences (e.g., get pouch from pack / put <amount> gold in pouch / put pouch in pack).
 * **Interactive UI Prompts:** Clickable on-screen links appear when players join or leave your party, or when untracked gold is handed to you.
 * **Split Strategies:** Choose between an `Even` split (equal shares regardless of join time) or a `Fair` split (prorated based on participation).
 * **Smarter Payouts & Safety:** Distribution calculates the exact hunt yield to withdraw, sparing your personal gold, and automatically resets the tracker afterward to prevent double-paying.
 * **Math Checks (Hidden Rewards):** The unique `goldeneyes check` feature takes a snapshot of your physical wealth and compares it to your ledger to automatically detect and distribute hidden quest rewards.
 * **State Persistence (JSON):** Goldeneyes automatically saves your data and settings to a `Goldeneyes_Profile.json` file on exit/disconnect, so you never lose your hunt data to a crash.
 * **Auto-Looting & Handover:** Automatically scoop gold into your designated container, or automatically hand it over to the designated party accountant.
+* **Collision-Free Auto-Looting:** Goldeneyes uses a reactive state machine to queue loot commands perfectly, meaning it plays flawlessly alongside aggressive combat scripts (like Battlesense) without their queue-clearing commands stepping on each other's toes.
+* **Smart Inversions:** Need walking-around money? Type gold pull 500 and Goldeneyes will automatically invert your custom personal deposit sequence to safely withdraw the gold.
 
 ---
 
@@ -48,15 +50,16 @@ OR
 All commands can be prefixed with either `goldeneyes` or `gold`.
 
 * `gold setup`: Launch the interactive quick-start dashboard.
-* `gold help`: View the full list of commands and settings.
-* `gold party`: Automatically scan and add your current party members to the ledger.
+* `gold help`: View the categorized help menu (e.g., gold help org, gold help party).
+* `gold groupscan`: Automatically scan and add your current party/group/intrepid members to the ledger.
 * `gold`: Displays the main tracking ledger and your current configuration.
-* `gold org <name> <%> [pot|personal]`: Set an organizational tax or cut.
-* `gold stash <custom sequence>`: Set a nested container storage sequence using `<amount>` as a placeholder.
-* `gold wallet stash`: Instantly stow personal gold using your custom wallet sequence.
-* `gold distribute [channel]`: Withdraws only the needed gold from your container, shares it, and auto-resets the tracker.
-* `gold reset confirm`: Safely wipes all current tracking data to start a fresh hunt.
-* `gold profile save`: Exports your current configuration to the JSON profile.
+* `gold` org <name|off> <%> [pot|personal]: Set an organizational tax, or disable it.
+* `gold` container <group|personal|org> <sequence>: Set a container sequence using <amount> as a placeholder.
+* `gold` stash [group|personal]: Instantly stow loose gold into the specified container.
+* `gold` pull <amount>: Automatically withdraws gold using your personal container sequence.
+* `gold` org deposit [note]: Automatically deposits held org funds into the bank and clears the ledger.
+* `gold` distribute [channel]: Withdraws the exact hunt yield, staggers payouts safely, and auto-resets the tracker.
+* `gold` report [channel]: Announces totals to party, intrepid, say, or individually via tell.
 
 ---
 
