@@ -63,6 +63,7 @@ Goldeneyes.checking_cap = false
 Goldeneyes.secured_tax = Goldeneyes.secured_tax or {personal = 0, pot = 0}
 Goldeneyes.loose_gold = Goldeneyes.loose_gold or 0
 Goldeneyes.stash_retries = Goldeneyes.stash_retries or 0
+Goldeneyes.missed_payouts = Goldeneyes.missed_payouts or {}
 
 -- =========================================================================
 -- 3. Core & Helper Functions
@@ -123,6 +124,7 @@ function Goldeneyes.save()
         accountant = Goldeneyes.accountant,
         starttime = Goldeneyes.starttime,
         secured_tax = Goldeneyes.secured_tax,
+        missed_payouts = Goldeneyes.missed_payouts,
     }
     
     local file = io.open(filepath, "w")
@@ -170,6 +172,7 @@ function Goldeneyes.load()
     Goldeneyes.accountant = data.accountant or Goldeneyes.accountant
     Goldeneyes.starttime = data.starttime or Goldeneyes.starttime
     Goldeneyes.secured_tax = data.secured_tax or Goldeneyes.secured_tax
+    Goldeneyes.missed_payouts = data.missed_payouts or {}
 
     if data.config then
         if data.config.stash then 
@@ -977,14 +980,22 @@ function Goldeneyes.display()
         for k, _ in pairs(all_holders) do
             local debt = Goldeneyes.ledger[k] or 0
             local unknown = Goldeneyes.unknown_ledger[k] or 0
-            local str = string.format("  <goldeneyesSilver>%14s: ", k:title())
+            local my_name = (gmcp and gmcp.Char and gmcp.Char.Name and gmcp.Char.Name.name:lower()) or "unknown"
+            
+            cecho("  <goldeneyesSilver>" .. string.format("%14s", k:title()) .. ": ")
 
-            if debt > 0 then str = str .. "<orange>" .. Goldeneyes.format(debt) .. " gold " end
-            if unknown > 0 then 
-                if debt > 0 then str = str .. "<goldeneyesSilver>and " end
-                str = str .. "<red>" .. unknown .. " unknown pile(s)" 
+            if debt > 0 then 
+                cecho("<orange>" .. Goldeneyes.format(debt) .. " gold ")
+                if k == my_name and Goldeneyes.accountant:lower() ~= my_name then
+                    cechoLink("<goldeneyesSilver>[<green>Handover<goldeneyesSilver>] ", string.format([[send("queue add eqbal give %s gold to %s")]], debt, Goldeneyes.accountant), "Give to accountant", true)
+                end
             end
-            cecho(str .. "\n")
+            
+            if unknown > 0 then 
+                if debt > 0 then cecho("<goldeneyesSilver>and ") end
+                cecho("<red>" .. unknown .. " unknown pile(s)")
+            end
+            cecho("\n")
         end
     end
 
@@ -1256,7 +1267,16 @@ function Goldeneyes.confirm_reset(skip_baseline, clear_roster)
     if type(Goldeneyes.showprompt) == "function" then Goldeneyes.showprompt() end
 end
 
-function Goldeneyes.distribute(channel)
+function Goldeneyes.distribute(channel, force)
+    if Goldeneyes.count(Goldeneyes.ledger) > 0 and not force then
+        Goldeneyes.echo("<red>WARNING:<goldeneyesSilver> There is uncollected group gold in the ledger!")
+        Goldeneyes.echo("Distributing now will clear the ledger and assume all debts are settled.")
+        cecho("\n       ")
+        cechoLink("<red>[Force Distribute]", string.format([[Goldeneyes.distribute("%s", true)]], channel or ""), "Ignore debts and distribute anyway", true)
+        cecho("\n")
+        return
+    end
+
     local cont = Goldeneyes.config.group_container or "pack"
     local shares = Goldeneyes.get_shares()
     local members = Goldeneyes.count(Goldeneyes.names)
@@ -1345,6 +1365,7 @@ function Goldeneyes.distribute(channel)
         if k ~= my_name then
             local give_amt = math.floor(v)
             if give_amt > 0 then 
+                Goldeneyes.missed_payouts[k] = (Goldeneyes.missed_payouts[k] or 0) + give_amt
                 local give_cmd = "queue add eqbal give " .. give_amt .. " gold to " .. k
                 tempTimer(delay, function() send(give_cmd) end)
                 delay = delay + 0.5
@@ -1397,7 +1418,32 @@ function Goldeneyes.distribute(channel)
         end)
     end
     
+    tempTimer(delay + 2.5, function()
+        if Goldeneyes.count(Goldeneyes.missed_payouts) > 0 then
+            Goldeneyes.echo("<orange>WARNING:<goldeneyesSilver> Some payouts failed (Target missing or queue disrupted).")
+            for missed_name, missed_amt in pairs(Goldeneyes.missed_payouts) do
+                cecho("\n  <goldeneyesSilver>Failed to pay <goldeneyesGold>" .. missed_name:title() .. "<goldeneyesSilver>: <orange>" .. Goldeneyes.format(missed_amt) .. " gold <grey>(Left in your inventory)")
+            end
+            cecho("\n  <goldeneyesSilver>Type <goldeneyesGold>gold owed<goldeneyesSilver> to view and retry these missed payouts later.\n")
+        end
+    end)
+    
     Goldeneyes.confirm_reset(true, false)
+end
+
+function Goldeneyes.show_owed()
+    if Goldeneyes.count(Goldeneyes.missed_payouts) == 0 then
+        Goldeneyes.echo("You have no missed payouts pending.")
+        return
+    end
+    cecho("\n<goldeneyesGold>=======================================================================<reset>")
+    cecho("\n<goldeneyesCopper>  Missed Payouts (Failed Handouts):<reset>\n")
+    for k, v in pairs(Goldeneyes.missed_payouts) do
+        cecho("  <goldeneyesSilver>" .. string.format("%14s", k:title()) .. ": <orange>" .. Goldeneyes.format(v) .. " gold ")
+        cechoLink("<green>[Retry] ", "send('queue add eqbal give " .. v .. " gold to " .. k .. "')", "Attempt to pay " .. k:title(), true)
+        cechoLink("<red>[Clear]\n", "Goldeneyes.missed_payouts['" .. k .. "'] = nil; Goldeneyes.echo('Cleared missed payout for " .. k:title() .. "'); Goldeneyes.save()", "Remove this debt without paying", true)
+    end
+    cecho("<goldeneyesGold>=======================================================================<reset>\n")
 end
 
 -- =========================================================================
@@ -1523,6 +1569,12 @@ function Goldeneyes.create_triggers()
         
         if Goldeneyes.loose_gold then
             Goldeneyes.loose_gold = math.max(0, Goldeneyes.loose_gold - amount)
+        end
+        
+        if Goldeneyes.missed_payouts and Goldeneyes.missed_payouts[target] then
+            Goldeneyes.missed_payouts[target] = math.max(0, Goldeneyes.missed_payouts[target] - amount)
+            if Goldeneyes.missed_payouts[target] <= 0 then Goldeneyes.missed_payouts[target] = nil end
+            Goldeneyes.save()
         end
         
         if Goldeneyes.accountant and target == Goldeneyes.accountant:lower() then
@@ -1726,7 +1778,13 @@ function Goldeneyes.create_triggers()
             if args[2] == "confirm" then Goldeneyes.confirm_reset(false, false) 
             elseif args[2] == "full" then Goldeneyes.confirm_reset(false, true)
             else Goldeneyes.reset() end
-        elseif cmd == "distribute" then Goldeneyes.distribute(args[2])
+        elseif cmd == "distribute" then 
+            local force = (args[2] == "force" or args[3] == "force")
+            local chan = args[2]
+            if chan == "force" then chan = "party" end
+            Goldeneyes.distribute(chan, force)
+        elseif cmd == "owed" then
+            Goldeneyes.show_owed()
         elseif cmd == "snapshot" then Goldeneyes.start_snapshot()
         elseif cmd == "check" then Goldeneyes.check_reward()
         elseif cmd == "report" then Goldeneyes.announce(args[2])
