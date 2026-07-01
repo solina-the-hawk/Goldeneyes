@@ -2,17 +2,16 @@
 -- GOLDENEYES: Gold Tracking & Distribution Utility
 -- A robust Mudlet ledger for Achaean hunting parties.
 -- Author: Solina (https://github.com/solina-the-hawk/Goldeneyes/)
--- Version: 1.3.0
+-- Version: 1.4.0
 -- =========================================================================
 Goldeneyes = Goldeneyes or {}
 
 -- =========================================================================
--- Configuration
+-- 1. Configuration
 -- These are default preferences you can safely edit if you wish. After you've 
 -- set them in game, your own settings will save and load with your profile.
 -- =========================================================================
 Goldeneyes.config = Goldeneyes.config or {
-    -- stash: The default container into which to stash group gold. 
     -- group_container: The default container into which to stash group gold.
     group_container = "pack",
     -- personal_container: Optional container to automatically store your personal cut.
@@ -40,8 +39,7 @@ for name, rgb in pairs(Goldeneyes.config.colors) do
 end
 
 -- =========================================================================
--- Runtime States
--- Internal variables used for math and tracking.
+-- 2. Runtime States
 -- =========================================================================
 if Goldeneyes.enabled == nil then Goldeneyes.enabled = true end
 Goldeneyes.names = Goldeneyes.names or {}
@@ -62,9 +60,8 @@ local my_name = (gmcp and gmcp.Char and gmcp.Char.Name and gmcp.Char.Name.name) 
 Goldeneyes.accountant = Goldeneyes.accountant or my_name
 
 -- =========================================================================
--- Helper Functions
+-- 3. Core & Helper Functions
 -- =========================================================================
-
 function Goldeneyes.count(t)
     local count = 0
     for _ in pairs(t) do count = count + 1 end
@@ -89,10 +86,8 @@ end
 function Goldeneyes.showprompt() end
 
 -- =========================================================================
--- Profile Management
--- Saves and loads configuration state to protect against client crashes.
+-- 4. Profile Management
 -- =========================================================================
-
 function Goldeneyes.get_save_path()
     return getMudletHomeDir() .. "/Goldeneyes-Data.lua"
 end
@@ -157,7 +152,6 @@ function Goldeneyes.load()
     Goldeneyes.org = data.org or Goldeneyes.org
     Goldeneyes.org_debts = data.org_debts or Goldeneyes.org_debts or {}
     
-    -- Legacy data migration handling
     if Goldeneyes.org and Goldeneyes.org.held and Goldeneyes.org.name then
         Goldeneyes.org_debts[Goldeneyes.org.name] = (Goldeneyes.org_debts[Goldeneyes.org.name] or 0) + Goldeneyes.org.held
     end
@@ -170,7 +164,6 @@ function Goldeneyes.load()
     Goldeneyes.accountant = data.accountant or Goldeneyes.accountant
     Goldeneyes.starttime = data.starttime or Goldeneyes.starttime
     
-    -- Legacy migration for old container names
     if data.config then
         if data.config.stash then 
             data.config.group_container = data.config.stash
@@ -180,9 +173,6 @@ function Goldeneyes.load()
             data.config.personal_container = data.config.wallet
             data.config.wallet = nil
         end
-    end
-
-    if data.config then
         for k, v in pairs(data.config) do
             if k ~= "colors" then 
                 Goldeneyes.config[k] = v
@@ -192,9 +182,8 @@ function Goldeneyes.load()
 end
 
 -- =========================================================================
--- Ledger & Math Logic
+-- 5. Ledger & Math Logic
 -- =========================================================================
-
 function Goldeneyes.get_shares()
     local shares = {}
     local count = Goldeneyes.count(Goldeneyes.names)
@@ -247,7 +236,6 @@ function Goldeneyes.plus(amt, noecho)
     local x = Goldeneyes
     local my_name = (gmcp and gmcp.Char and gmcp.Char.Name and gmcp.Char.Name.name:lower()) or "unknown"
 
-    -- Safety Net: Auto-add the user if the tracker is empty so iterative gold isn't lost
     local num = Goldeneyes.count(x.names)
     if num == 0 and my_name ~= "unknown" then
         Goldeneyes.add(my_name)
@@ -289,7 +277,6 @@ function Goldeneyes.minus(amt)
     local x = Goldeneyes
     local my_name = (gmcp and gmcp.Char and gmcp.Char.Name and gmcp.Char.Name.name:lower()) or "unknown"
 
-    -- Safety Net: Auto-add the user if the tracker is empty
     local num = x.count(x.names)
     if num == 0 and my_name ~= "unknown" then
         Goldeneyes.add(my_name)
@@ -325,7 +312,6 @@ end
 
 function Goldeneyes.calc(amount, people)
     if type(amount) == "string" then amount = amount:gsub(",", "") end
-    
     amount = tonumber(amount)
     people = tonumber(people)
 
@@ -354,9 +340,8 @@ function Goldeneyes.add_expense(amt)
 end
 
 -- =========================================================================
--- Party & Group Management
+-- 6. Party & Group Management
 -- =========================================================================
-
 function Goldeneyes.add(name)
     name = name:lower()
     if Goldeneyes.names[name] == nil then
@@ -462,10 +447,12 @@ function Goldeneyes.ignore_pending(name)
     end
 end
 
+-- =========================================================================
+-- 7. Organization Taxes
+-- =========================================================================
 function Goldeneyes.set_org(name, percent, mode)
     local is_disable = (not name or name:lower() == "off" or name:lower() == "none" or name:lower() == "null")
     
-    -- Mid-hunt switch handling: Flush active tax to debts and physicalize withdrawal
     if Goldeneyes.org.name and Goldeneyes.org.gold > 0 then
         local old_name = Goldeneyes.org.name
         local is_changing = is_disable or (name and old_name:lower() ~= name:lower())
@@ -590,15 +577,13 @@ function Goldeneyes.deposit_org(note, force)
     send("queue add eqbal " .. deposit_cmd)
     Goldeneyes.echo("Depositing <goldeneyesGold>" .. Goldeneyes.format(amt) .. "<goldeneyesSilver> gold to <goldeneyesGold>" .. org_name .. "<goldeneyesSilver>.")
     
-    -- Automatically reset the debt for this org
     Goldeneyes.org_debts[org_name] = nil
     Goldeneyes.save()
 end
 
 -- =========================================================================
--- Inventory & Loot Management
+-- 8. Inventory & Loot Management
 -- =========================================================================
-
 function Goldeneyes.set_container(ctype, name)
     ctype = ctype and ctype:lower() or ""
     if not name or name == "" then
@@ -663,10 +648,7 @@ function Goldeneyes.pull_personal(amount)
     if p_cont:find("/") then
         local commands = p_cont:split("/")
         for _, cmd in ipairs(commands) do
-            -- Strip leading/trailing whitespace
             cmd = cmd:gsub("^%s+", ""):gsub("%s+$", "")
-            
-            -- Smart translation: Invert the deposit action to a withdrawal
             if cmd:find("<amount>") then
                 cmd = cmd:gsub("^put ", "get ")
                 cmd = cmd:gsub(" put ", " get ")
@@ -674,12 +656,10 @@ function Goldeneyes.pull_personal(amount)
                 cmd = cmd:gsub(" into ", " from ")
                 cmd = cmd:gsub("<amount>", tostring(amount))
             end
-            
             send("queue add eqbal " .. cmd)
         end
         Goldeneyes.echo("Pulling <goldeneyesGold>" .. Goldeneyes.format(amount) .. "<goldeneyesSilver> gold using inverted custom sequence.")
     else
-        -- Simple container withdrawal
         send("queue add eqbal get " .. amount .. " gold from " .. p_cont)
         Goldeneyes.echo("Pulling <goldeneyesGold>" .. Goldeneyes.format(amount) .. "<goldeneyesSilver> gold from your <goldeneyesGold>" .. p_cont .. "<goldeneyesSilver>.")
     end
@@ -752,9 +732,8 @@ function Goldeneyes.handle_loot(amt)
 end
 
 -- =========================================================================
--- Snapshots & Checks
+-- 9. Snapshots & Checks
 -- =========================================================================
-
 function Goldeneyes.start_snapshot()
     Goldeneyes.set_baseline()
 end
@@ -813,9 +792,8 @@ function Goldeneyes.process_gold_capture(hand, bank)
 end
 
 -- =========================================================================
--- UI & Display
+-- 10. UI, Menus & Displays
 -- =========================================================================
-
 function Goldeneyes.display()
     local status = Goldeneyes.enabled and "<green>ON<goldeneyesSilver>" or "<red>OFF<goldeneyesSilver>"
     local current_name = (gmcp and gmcp.Char and gmcp.Char.Name and gmcp.Char.Name.name) or "Unknown"
@@ -923,7 +901,6 @@ function Goldeneyes.announce(channel)
         tax_str = string.format(" (after %s gold withheld for %s)", Goldeneyes.format(math.floor(Goldeneyes.org.gold)), Goldeneyes.org.name)
     end
     
-    -- The New TELL Routing
     if channel == "tell" then
         local shares = Goldeneyes.get_shares()
         local my_name = (gmcp and gmcp.Char and gmcp.Char.Name and gmcp.Char.Name.name:lower()) or "unknown"
@@ -945,7 +922,6 @@ function Goldeneyes.announce(channel)
         return
     end
 
-    -- Standard Broadcast Routing
     local cmd, message = "pt", ""
     if channel == "intrepid" then
         cmd = "it"
@@ -958,6 +934,97 @@ function Goldeneyes.announce(channel)
         message = "We have collected a total of " .. Goldeneyes.format(Goldeneyes.total) .. " gold so far" .. tax_str .. "."
     end
     send(cmd .. " " .. message)
+end
+
+function Goldeneyes.setup()
+    local strat = Goldeneyes.config.split_strategy:title()
+    local stash = Goldeneyes.config.group_container and Goldeneyes.config.group_container:title() or "None"
+    local wallet = Goldeneyes.config.personal_container and Goldeneyes.config.personal_container:title() or "None"
+    local acc = Goldeneyes.accountant or "Unknown"
+    local loot = Goldeneyes.config.pickup and "<green>ON<goldeneyesSilver>" or "<red>OFF<goldeneyesSilver>"
+
+    cecho("\n<goldeneyesGold>=======================================================================<reset>")
+    cecho("\n<goldeneyesGold>                 G O L D E N E Y E S   Q U I C K   S E T U P           <reset>")
+    cecho("\n<goldeneyesGold>=======================================================================<reset>")
+    cecho("\n<goldeneyesSilver>Welcome to Goldeneyes! Let's get your ledger ready for the hunt.")
+    cecho("\n<goldeneyesSilver>Click the highlighted links below to configure your core settings.\n\n")
+
+    cecho("  <goldeneyesCopper>1. Collector:       <goldeneyesGold>" .. acc .. " <goldeneyesSilver>")
+    cechoLink("<grey>[Click to Change]", [[clearCmdLine() appendCmdLine("gold accountant ")]], "Designate who physically holds the gold", true)
+
+    cecho("\n  <goldeneyesCopper>2. Split Strategy:  ")
+    local next_strat = (strat == "Even") and "fair" or "even"
+    cechoLink("<goldeneyesGold>[" .. strat .. "]", [[Goldeneyes.set_strategy("]] .. next_strat .. [["); tempTimer(0.1, function() Goldeneyes.setup() end)]], "Toggle between Even and Fair splits", true)
+    
+    cecho("\n  <goldeneyesCopper>3. Group Stash:     <goldeneyesGold>" .. stash .. " <goldeneyesSilver>")
+    cechoLink("<grey>[Click to Set]", [[clearCmdLine() appendCmdLine("gold container group ")]], "Set the container where un-split group gold is kept", true)
+
+    cecho("\n  <goldeneyesCopper>4. Personal Wallet: <goldeneyesGold>" .. wallet .. " <goldeneyesSilver>")
+    cechoLink("<grey>[Click to Set]", [[clearCmdLine() appendCmdLine("gold container personal ")]], "Set where your personal cut goes after distribution", true)
+
+    cecho("\n  <goldeneyesCopper>5. Auto-Looting:    ")
+    local next_loot = Goldeneyes.config.pickup and "off" or "on"
+    cechoLink("[" .. loot .. "]", [[Goldeneyes.togglepickup("]] .. next_loot .. [["); tempTimer(0.1, function() Goldeneyes.setup() end)]], "Toggle automatic gold scooping", true)
+
+    cecho("\n\n<goldeneyesSilver>When you are ready, type <goldeneyesGold>gold groupscan<goldeneyesSilver> to scan your group,")
+    cecho("\n<goldeneyesSilver>or just type <goldeneyesGold>gold<goldeneyesSilver> to view your live ledger!")
+    cecho("\n<goldeneyesGold>=======================================================================<reset>\n")
+    if type(Goldeneyes.showprompt) == "function" then Goldeneyes.showprompt() end
+end
+
+function Goldeneyes.help(category)
+    category = category and category:lower() or "main"
+    
+    cecho("\n<goldeneyesGold>=======================================================================<reset>")
+    cecho("\n<goldeneyesGold>                    G O L D E N E Y E S   H E L P                      <reset>")
+    cecho("\n<goldeneyesGold>=======================================================================<reset>\n")
+    
+    if category == "party" or category == "group" then
+        cecho("\n<goldeneyesCopper>Group & Party Management:<reset>")
+        cecho("\n  <goldeneyesGold>gold strategy <even|fair>   <reset>- Set split method (Default: even).")
+        cecho("\n  <goldeneyesGold>gold groupscan              <reset>- Auto-add party, group, and intrepid members.")
+        cecho("\n  <goldeneyesGold>gold add|remove <name>      <reset>- Add or remove a person from the split list.")
+        cecho("\n  <goldeneyesGold>gold pause|unpause <name>   <reset>- Pause or resume tracking for a member.")
+        
+    elseif category == "loot" then
+        cecho("\n<goldeneyesCopper>Loot & Automation Settings:<reset>")
+        cecho("\n  <goldeneyesGold>gold alerts <on|off>        <reset>- Toggle clickable party join/leave prompts.")
+        cecho("\n  <goldeneyesGold>gold accountant <name>      <reset>- Designate the collector (Default: You).")
+        cecho("\n  <goldeneyesGold>gold autohandover <on|off>  <reset>- Automatically give loot to collector.")
+        cecho("\n  <goldeneyesGold>gold autoloot <on|off>      <reset>- Toggle auto-looting.")
+        cecho("\n  <goldeneyesGold>gold container <type> <name><reset>- Set a container (group, personal, org).")
+        cecho("\n  <grey>  (Tip: Containers support custom sequences! Use <amount> as a placeholder.)")
+        cecho("\n  <grey>  (e.g., <goldeneyesGold>gold container personal get pouch from pack / put <amount> gold in pouch / put pouch in pack<grey>)")
+        
+    elseif category == "org" then
+        cecho("\n<goldeneyesCopper>Organization Taxes & Banking:<reset>")
+        cecho("\n  <goldeneyesGold>gold org <name|off> <%> [pot|personal] <reset>- Set an org share, or disable it.")
+        cecho("\n  <goldeneyesGold>gold org reset [name|all]   <reset>- Clear accumulated org funds manually.")
+        cecho("\n  <goldeneyesGold>gold org deposit [note]     <reset>- Bank deposit org funds and auto-clear.")
+        
+    elseif category == "misc" then
+        cecho("\n<goldeneyesCopper>Advanced Math & Checks:<reset>")
+        cecho("\n  <goldeneyesGold>gold stash [group|personal] <reset>- Move all carried gold to a specific container.")
+        cecho("\n  <goldeneyesGold>gold pull <amount>          <reset>- Withdraw gold from your Personal container.")
+        cecho("\n  <goldeneyesGold>gold calc <amt> <#>         <reset>- Quick math to split an amount of gold.")
+        cecho("\n  <goldeneyesGold>gold plus|minus <amount>    <reset>- Manually add or subtract from Total.")
+        
+    else
+        cecho("\n<goldeneyesSilver>New to Goldeneyes? Type <goldeneyesGold>gold setup<goldeneyesSilver> for a quick, interactive walkthrough!<reset>\n")
+        cecho("\n<goldeneyesCopper>Core Day-to-Day Commands:<reset>")
+        cecho("\n  <goldeneyesGold>gold <on|off>               <reset>- Turn tracker on/off.")
+        cecho("\n  <goldeneyesGold>gold groupscan              <reset>- Quickly scan your party into the ledger.")
+        cecho("\n  <goldeneyesGold>gold report [channel]       <reset>- Announce totals (party, intrepid, say, tell).")
+        cecho("\n  <goldeneyesGold>gold distribute [channel]   <reset>- Empty Group container and payout shares.")
+        cecho("\n  <goldeneyesGold>gold reset                  <reset>- Reset all totals (enter twice to confirm).")
+        
+        cecho("\n\n<goldeneyesCopper>Additional Help Categories:<reset>")
+        cecho("\n  <goldeneyesSilver>Type <goldeneyesGold>gold help <category><goldeneyesSilver> to view more commands:")
+        cecho("\n  [ <goldeneyesGold>party<goldeneyesSilver> ] [ <goldeneyesGold>loot<goldeneyesSilver> ] [ <goldeneyesGold>org<goldeneyesSilver> ] [ <goldeneyesGold>misc<goldeneyesSilver> ]")
+    end
+
+    cecho("\n<goldeneyesGold>=======================================================================<reset>\n")
+    if type(Goldeneyes.showprompt) == "function" then Goldeneyes.showprompt() end
 end
 
 function Goldeneyes.set_strategy(strat)
@@ -1149,15 +1216,13 @@ function Goldeneyes.distribute(channel)
     if org_cut > 0 and o_cont:lower() ~= "none" and o_cont:lower() ~= "inventory" then
         Goldeneyes.echo("Org tax routed to <goldeneyesGold>" .. o_cont)
     end
-    -- Wipe the totals but keep the roster for the next hunt
+    
     Goldeneyes.confirm_reset(true, false)
 end
 
-
 -- =========================================================================
--- Event Handlers & Hooks
+-- 11. Event Handlers & Hooks
 -- =========================================================================
-
 function Goldeneyes_login_check()
     if not gmcp or not gmcp.Char or not gmcp.Char.Name then return end
     local my_name = gmcp.Char.Name.name:title()
@@ -1194,28 +1259,19 @@ Goldeneyes.save_exit_handler = registerAnonymousEventHandler("sysExitEvent", "Go
 if Goldeneyes.save_dc_handler then killAnonymousEventHandler(Goldeneyes.save_dc_handler) end
 Goldeneyes.save_dc_handler = registerAnonymousEventHandler("sysDisconnectionEvent", "Goldeneyes.save")
 
--- =========================================================================
 -- Persistent Loot Hooks
--- =========================================================================
-
--- 1. Clear the pending state when we move to a new room so we don't carry the queue forward
 if Goldeneyes.room_handler then killAnonymousEventHandler(Goldeneyes.room_handler) end
 Goldeneyes.room_handler = registerAnonymousEventHandler("gmcp.Room.Info", function()
     Goldeneyes.pending_loot = false
 end)
 
--- 2. Monitor outgoing client commands for queue clears
 if Goldeneyes.send_handler then killAnonymousEventHandler(Goldeneyes.send_handler) end
 Goldeneyes.send_handler = registerAnonymousEventHandler("sysDataSendRequest", function(_, command)
-    -- If looting is off, or there is no gold waiting, do nothing.
     if not Goldeneyes.enabled or not Goldeneyes.config.pickup or not Goldeneyes.pending_loot then return end
 
     local cmd = command:lower()
     
-    -- Match standard Achaea queue clears (cq, cq all, cq eqbal, clearqueue, etc.)
     if cmd:match("^cq") or cmd:match("^clearqueue") or cmd:match("^svo clear") then
-        
-        -- Wait a split second to ensure our loot command is appended AFTER the clear goes through
         tempTimer(0.1, function()
             if Goldeneyes.pending_loot then
                 send("queue add eqbal get gold", false)
@@ -1225,9 +1281,8 @@ Goldeneyes.send_handler = registerAnonymousEventHandler("sysDataSendRequest", fu
 end)
 
 -- =========================================================================
--- Dynamic Triggers & Aliases
+-- 12. Dynamic Triggers & Aliases
 -- =========================================================================
-
 Goldeneyes.trigger_ids = Goldeneyes.trigger_ids or {}
 Goldeneyes.alias_ids = Goldeneyes.alias_ids or {}
 
@@ -1420,109 +1475,6 @@ function Goldeneyes.create_triggers()
         end
     ]]))
 
--- =========================================================================
--- In-Game Setup Dashboard
--- =========================================================================
-function Goldeneyes.setup()
-    local strat = Goldeneyes.config.split_strategy:title()
-    local stash = Goldeneyes.config.stash and Goldeneyes.config.stash:title() or "None"
-    local wallet = Goldeneyes.config.wallet and Goldeneyes.config.wallet:title() or "None"
-    local acc = Goldeneyes.accountant or "Unknown"
-    local loot = Goldeneyes.config.pickup and "<green>ON<goldeneyesSilver>" or "<red>OFF<goldeneyesSilver>"
-
-    cecho("\n<goldeneyesGold>=======================================================================<reset>")
-    cecho("\n<goldeneyesGold>                 G O L D E N E Y E S   Q U I C K   S E T U P           <reset>")
-    cecho("\n<goldeneyesGold>=======================================================================<reset>")
-    cecho("\n<goldeneyesSilver>Welcome to Goldeneyes! Let's get your ledger ready for the hunt.")
-    cecho("\n<goldeneyesSilver>Click the highlighted links below to configure your core settings.\n\n")
-
-    -- 1. Collector
-    cecho("  <goldeneyesCopper>1. Collector:       <goldeneyesGold>" .. acc .. " <goldeneyesSilver>")
-    cechoLink("<grey>[Click to Change]", [[clearCmdLine() appendCmdLine("gold accountant ")]], "Designate who physically holds the gold", true)
-
-    -- 2. Strategy
-    cecho("\n  <goldeneyesCopper>2. Split Strategy:  ")
-    local next_strat = (strat == "Even") and "fair" or "even"
-    cechoLink("<goldeneyesGold>[" .. strat .. "]", [[Goldeneyes.set_strategy("]] .. next_strat .. [["); tempTimer(0.1, function() Goldeneyes.setup() end)]], "Toggle between Even and Fair splits", true)
-    
-    -- 3. Stash
-    cecho("\n  <goldeneyesCopper>3. Group Stash:     <goldeneyesGold>" .. stash .. " <goldeneyesSilver>")
-    cechoLink("<grey>[Click to Set]", [[clearCmdLine() appendCmdLine("gold stash ")]], "Set the container where un-split gold is kept", true)
-
-    -- 4. Wallet
-    cecho("\n  <goldeneyesCopper>4. Personal Wallet: <goldeneyesGold>" .. wallet .. " <goldeneyesSilver>")
-    cechoLink("<grey>[Click to Set]", [[clearCmdLine() appendCmdLine("gold wallet ")]], "Set where your personal cut goes after distribution", true)
-
-    -- 5. Auto-Loot
-    cecho("\n  <goldeneyesCopper>5. Auto-Looting:    ")
-    local next_loot = Goldeneyes.config.pickup and "off" or "on"
-    cechoLink("[" .. loot .. "]", [[Goldeneyes.togglepickup("]] .. next_loot .. [["); tempTimer(0.1, function() Goldeneyes.setup() end)]], "Toggle automatic gold scooping", true)
-
-    cecho("\n\n<goldeneyesSilver>When you are ready, type <goldeneyesGold>gold groupscan<goldeneyesSilver> to scan your group,")
-    cecho("\n<goldeneyesSilver>or just type <goldeneyesGold>gold<goldeneyesSilver> to view your live ledger!")
-    cecho("\n<goldeneyesGold>=======================================================================<reset>\n")
-    if type(Goldeneyes.showprompt) == "function" then Goldeneyes.showprompt() end
-end
-
--- =========================================================================
--- In-Game Commands & Help Interface
--- =========================================================================
-function Goldeneyes.help(category)
-    category = category and category:lower() or "main"
-    
-    cecho("\n<goldeneyesGold>=======================================================================<reset>")
-    cecho("\n<goldeneyesGold>                    G O L D E N E Y E S   H E L P                      <reset>")
-    cecho("\n<goldeneyesGold>=======================================================================<reset>\n")
-    
-    if category == "party" or category == "group" then
-        cecho("\n<goldeneyesCopper>Group & Party Management:<reset>")
-        cecho("\n  <goldeneyesGold>gold strategy <even|fair>   <reset>- Set split method (Default: even).")
-        cecho("\n  <goldeneyesGold>gold groupscan              <reset>- Auto-add party, group, and intrepid members.")
-        cecho("\n  <goldeneyesGold>gold add|remove <name>      <reset>- Add or remove a person from the split list.")
-        cecho("\n  <goldeneyesGold>gold pause|unpause <name>   <reset>- Pause or resume tracking for a member.")
-        
-    elseif category == "loot" then
-        cecho("\n<goldeneyesCopper>Loot & Automation Settings:<reset>")
-        cecho("\n  <goldeneyesGold>gold alerts <on|off>        <reset>- Toggle clickable party join/leave prompts.")
-        cecho("\n  <goldeneyesGold>gold accountant <name>      <reset>- Designate the collector (Default: You).")
-        cecho("\n  <goldeneyesGold>gold autohandover <on|off>  <reset>- Automatically give loot to collector.")
-        cecho("\n  <goldeneyesGold>gold autoloot <on|off>      <reset>- Toggle auto-looting.")
-        cecho("\n  <goldeneyesGold>gold container <type> <name><reset>- Set a container (group, personal, org).")
-        cecho("\n  <grey>  (Tip: Containers support custom sequences! Use <amount> as a placeholder.)")
-        cecho("\n  <grey>  (e.g., <goldeneyesGold>gold container personal get pouch from pack / put <amount> gold in pouch / put pouch in pack<grey>)")
-        
-    elseif category == "org" then
-        cecho("\n<goldeneyesCopper>Organization Taxes & Banking:<reset>")
-        cecho("\n  <goldeneyesGold>gold org <name|off> <%> [pot|personal] <reset>- Set an org share, or disable it.")
-        cecho("\n  <goldeneyesGold>gold org reset [name|all]   <reset>- Clear accumulated org funds manually.")
-        cecho("\n  <goldeneyesGold>gold org deposit [note]     <reset>- Bank deposit org funds and auto-clear.")
-        
-    elseif category == "misc" then
-        cecho("\n<goldeneyesCopper>Advanced Math & Checks:<reset>")
-        cecho("\n  <goldeneyesGold>gold stash [group|personal] <reset>- Move all carried gold to a specific container.")
-        cecho("\n  <goldeneyesGold>gold pull <amount>          <reset>- Withdraw gold from your Personal container.")
-        cecho("\n  <goldeneyesGold>gold calc <amt> <#>         <reset>- Quick math to split an amount of gold.")
-        cecho("\n  <goldeneyesGold>gold plus|minus <amount>    <reset>- Manually add or subtract from Total.")
-        
-    else
-        -- Main Overview Menu
-        cecho("\n<goldeneyesSilver>New to Goldeneyes? Type <goldeneyesGold>gold setup<goldeneyesSilver> for a quick, interactive walkthrough!<reset>\n")
-        cecho("\n<goldeneyesCopper>Core Day-to-Day Commands:<reset>")
-        cecho("\n  <goldeneyesGold>gold <on|off>               <reset>- Turn tracker on/off.")
-        cecho("\n  <goldeneyesGold>gold groupscan              <reset>- Quickly scan your party into the ledger.")
-        cecho("\n  <goldeneyesGold>gold report [channel]       <reset>- Announce totals (party, intrepid, say, tell).")
-        cecho("\n  <goldeneyesGold>gold distribute [channel]   <reset>- Empty Group container and payout shares.")
-        cecho("\n  <goldeneyesGold>gold reset                  <reset>- Reset all totals (enter twice to confirm).")
-        
-        cecho("\n\n<goldeneyesCopper>Additional Help Categories:<reset>")
-        cecho("\n  <goldeneyesSilver>Type <goldeneyesGold>gold help <category><goldeneyesSilver> to view more commands:")
-        cecho("\n  [ <goldeneyesGold>party<goldeneyesSilver> ] [ <goldeneyesGold>loot<goldeneyesSilver> ] [ <goldeneyesGold>org<goldeneyesSilver> ] [ <goldeneyesGold>misc<goldeneyesSilver> ]")
-    end
-
-    cecho("\n<goldeneyesGold>=======================================================================<reset>\n")
-    if type(Goldeneyes.showprompt) == "function" then Goldeneyes.showprompt() end
-end
-
     table.insert(Goldeneyes.alias_ids, tempAlias("^(?i)(?:Goldeneyes|gold)(?:\\s+(.*))?$", 
     [[
         local args_str = matches[2] or ""
@@ -1592,9 +1544,8 @@ end
 end
 
 -- =========================================================================
--- Initialization
+-- 13. Initialization
 -- =========================================================================
-
 Goldeneyes.create_triggers()
 Goldeneyes.load()
 Goldeneyes.echo("Loaded Successfully!")
