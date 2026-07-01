@@ -463,7 +463,7 @@ function Goldeneyes.ignore_pending(name)
 end
 
 function Goldeneyes.set_org(name, percent, mode)
-    local is_disable = (not name or name:lower() == "off" or name:lower() == "none")
+    local is_disable = (not name or name:lower() == "off" or name:lower() == "none" or name:lower() == "null")
     
     -- Mid-hunt switch handling: Flush active tax to debts and physicalize withdrawal
     if Goldeneyes.org.name and Goldeneyes.org.gold > 0 then
@@ -524,7 +524,7 @@ function Goldeneyes.set_org(name, percent, mode)
     Goldeneyes.save()
 end
 
-function Goldeneyes.pay_org(target)
+function Goldeneyes.reset_org(target)
     if target and target:lower() == "all" then
         for k, v in pairs(Goldeneyes.org_debts) do
             Goldeneyes.echo("Cleared <goldeneyesGold>" .. Goldeneyes.format(v) .. "<goldeneyesSilver> held gold for <goldeneyesGold>" .. k .. "<goldeneyesSilver>.")
@@ -551,10 +551,48 @@ function Goldeneyes.pay_org(target)
             Goldeneyes.org_debts[Goldeneyes.org.name] = nil
             Goldeneyes.save()
         else
-            Goldeneyes.echo("No held funds for your active org. Use <goldeneyesGold>gold org deposit <name><goldeneyesSilver> or <goldeneyesGold>all<goldeneyesSilver>.")
+            Goldeneyes.echo("No held funds for your active org. Use <goldeneyesGold>gold org reset <name><goldeneyesSilver> or <goldeneyesGold>all<goldeneyesSilver>.")
         end
     end
     if type(Goldeneyes.showprompt) == "function" then Goldeneyes.showprompt() end
+end
+
+function Goldeneyes.deposit_org(note, force)
+    if not Goldeneyes.org.name then
+        Goldeneyes.echo("No active organization configured. Use <goldeneyesGold>gold org <name> <%> [pot|personal]<goldeneyesSilver>.")
+        return
+    end
+    
+    local org_name = Goldeneyes.org.name
+    local amt = Goldeneyes.org_debts[org_name]
+    
+    if not amt or amt <= 0 then
+        Goldeneyes.echo("You don't currently have any withheld funds to deposit for <goldeneyesGold>" .. org_name .. "<goldeneyesSilver>.")
+        return
+    end
+    
+    local room_name = (gmcp and gmcp.Room and gmcp.Room.Info and gmcp.Room.Info.name) or ""
+    local is_bank = room_name:lower():find("bank")
+    
+    if not is_bank and not force then
+        Goldeneyes.echo("<yellow>Warning:<goldeneyesSilver> You do not appear to be in a bank (Room: " .. room_name .. ").")
+        cecho("\n       ")
+        cechoLink("<green>[Confirm Deposit]", string.format([[Goldeneyes.deposit_org(%q, true)]], note or ""), "Attempt deposit anyway", true)
+        cecho("\n")
+        return
+    end
+    
+    local deposit_cmd = "deposit " .. math.floor(amt) .. " gold " .. org_name
+    if note and note ~= "" then
+        deposit_cmd = deposit_cmd .. " " .. note
+    end
+    
+    send("queue add eqbal " .. deposit_cmd)
+    Goldeneyes.echo("Depositing <goldeneyesGold>" .. Goldeneyes.format(amt) .. "<goldeneyesSilver> gold to <goldeneyesGold>" .. org_name .. "<goldeneyesSilver>.")
+    
+    -- Automatically reset the debt for this org
+    Goldeneyes.org_debts[org_name] = nil
+    Goldeneyes.save()
 end
 
 -- =========================================================================
@@ -874,13 +912,36 @@ end
 
 function Goldeneyes.announce(channel)
     channel = channel and channel:lower() or "party"
-    local cmd, message = "pt", ""
-    
     local tax_str = ""
+    
     if Goldeneyes.org and Goldeneyes.org.name and Goldeneyes.org.mode == "pot" and Goldeneyes.org.gold > 0 then
         tax_str = string.format(" (after %s gold withheld for %s)", Goldeneyes.format(math.floor(Goldeneyes.org.gold)), Goldeneyes.org.name)
     end
     
+    -- The New TELL Routing
+    if channel == "tell" then
+        local shares = Goldeneyes.get_shares()
+        local my_name = (gmcp and gmcp.Char and gmcp.Char.Name and gmcp.Char.Name.name:lower()) or "unknown"
+        local sent_count = 0
+        
+        for k, v in pairs(shares) do
+            if k ~= my_name then
+                local msg = string.format("We have collected a total of %s gold so far%s. Your current share is %s gold.", Goldeneyes.format(Goldeneyes.total), tax_str, Goldeneyes.format(v))
+                send("tell " .. k .. " " .. msg)
+                sent_count = sent_count + 1
+            end
+        end
+        
+        if sent_count > 0 then
+            Goldeneyes.echo("Sent individualized gold reports via tell to " .. sent_count .. " members.")
+        else
+            Goldeneyes.echo("No other tracked members to send tells to.")
+        end
+        return
+    end
+
+    -- Standard Broadcast Routing
+    local cmd, message = "pt", ""
     if channel == "intrepid" then
         cmd = "it"
         message = "We have collected a total of " .. Goldeneyes.format(Goldeneyes.total) .. " gold so far" .. tax_str .. "."
@@ -1083,7 +1144,8 @@ function Goldeneyes.distribute(channel)
     if org_cut > 0 and o_cont:lower() ~= "none" and o_cont:lower() ~= "inventory" then
         Goldeneyes.echo("Org tax routed to <goldeneyesGold>" .. o_cont)
     end
-    Goldeneyes.save()
+    -- Wipe the totals but keep the roster for the next hunt
+    Goldeneyes.confirm_reset(true, false)
 end
 
 
@@ -1415,16 +1477,16 @@ function Goldeneyes.help()
     cecho("\n<goldeneyesCopper>Basic Controls:<reset>")
     cecho("\n  <goldeneyesGold>gold <on|off>               <reset>- Turn tracker on/off.")
     cecho("\n  <goldeneyesGold>gold reset                  <reset>- Reset all totals (enter twice to confirm).")
-    cecho("\n  <goldeneyesGold>gold report [channel]       <reset>- Announce totals (Channels: party, intrepid, say).")
+    cecho("\n  <goldeneyesGold>gold report [channel]       <reset>- Announce totals (Channels: party, intrepid, say, tell).")
 
     cecho("\n\n<goldeneyesCopper>Group & Party Management:<reset>")
     cecho("\n  <goldeneyesGold>gold strategy <even|fair>   <reset>- Set split method (Default: even).")
     cecho("\n  <goldeneyesGold>gold groupscan              <reset>- Auto-add party, group, and intrepid members.")
     cecho("\n  <goldeneyesGold>gold add|remove <name>      <reset>- Add or remove a person from the split list.")
     cecho("\n  <goldeneyesGold>gold pause|unpause <name>   <reset>- Pause or resume tracking for a member.")
-    cecho("\n  <goldeneyesGold>gold org <name> <%> [pot|personal] <reset>- Set an organization share. Use 'off' in place of a name to disable.")
-    cecho("\n  <goldeneyesGold>gold org deposit [name|all] <reset>- Clear accumulated org funds after banking.")
-    cecho("\n  <goldeneyesGold>gold org off                <reset>- Disable organization share.")
+    cecho("\n  <goldeneyesGold>gold org <name|off|none> <%> [pot|personal] <reset>- Set an org share, or disable it.")
+    cecho("\n  <goldeneyesGold>gold org reset [name|all]   <reset>- Clear accumulated org funds manually.")
+    cecho("\n  <goldeneyesGold>gold org deposit [note]     <reset>- Bank deposit org funds and auto-clear.")
 
     cecho("\n\n<goldeneyesCopper>Loot & Accounting Automation:<reset>")
     cecho("\n  <goldeneyesGold>gold alerts <on|off>        <reset>- Toggle clickable party join/leave prompts.")
@@ -1499,8 +1561,13 @@ end
                 cecho("\n<goldeneyesSilver>[<goldeneyesGold>Goldeneyes<goldeneyesSilver>]: Profile loaded successfully.\n")
             end
         elseif cmd == "org" then 
-            if args[2] == "pay" or args[2] == "deposit" or args[2] == "clear" then
-                Goldeneyes.pay_org(args[3])
+            if args[2] == "reset" or args[2] == "pay" or args[2] == "clear" then
+                Goldeneyes.reset_org(args[3])
+            elseif args[2] == "deposit" then
+                local note_args = {}
+                for i = 3, #args do table.insert(note_args, args[i]) end
+                local note = table.concat(note_args, " ")
+                Goldeneyes.deposit_org(note, false)
             else
                 Goldeneyes.set_org(args[2], args[3], args[4])
             end
