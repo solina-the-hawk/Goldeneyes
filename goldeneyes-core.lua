@@ -55,9 +55,11 @@ Goldeneyes.reset_pending = false
 Goldeneyes.pending_gold = Goldeneyes.pending_gold or {}
 Goldeneyes.org = Goldeneyes.org or {name = false, percent = 0, gold = 0, mode = "pot", taxable_base = 0}
 Goldeneyes.org_debts = Goldeneyes.org_debts or {}
-
 local my_name = (gmcp and gmcp.Char and gmcp.Char.Name and gmcp.Char.Name.name) or "Unknown"
 Goldeneyes.accountant = Goldeneyes.accountant or my_name
+Goldeneyes.cap = Goldeneyes.cap or {current = 0, max = 0}
+Goldeneyes.last_cap_check = Goldeneyes.last_cap_check or 0
+Goldeneyes.checking_cap = false
 
 -- =========================================================================
 -- 3. Core & Helper Functions
@@ -864,6 +866,13 @@ function Goldeneyes.display()
         cecho("\n<goldeneyesSilver>  No members currently tracked. Use <goldeneyesGold>gold groupscan<goldeneyesSilver> to add.\n")
     end
 
+    -- === 2.5 GOLD CAP PROGRESS ===
+    if Goldeneyes.cap and Goldeneyes.cap.max > 0 then
+        local pct = math.floor((Goldeneyes.cap.current / Goldeneyes.cap.max) * 100)
+        local cap_color = (pct >= 90) and "<red>" or ((pct >= 75) and "<orange>" or "<green>")
+        cecho(string.format("\n<goldeneyesCopper>  Personal Cap Progress: %s%s <goldeneyesSilver>/ <goldeneyesGold>%s <goldeneyesSilver>(%s%s%%<goldeneyesSilver>)\n", cap_color, Goldeneyes.format(Goldeneyes.cap.current), Goldeneyes.format(Goldeneyes.cap.max), cap_color, pct))
+    end
+
     -- === 3. ORG TAXES ===
     if Goldeneyes.org.name then
         local mode_text = (Goldeneyes.org.mode == "personal") and "Personal Share" or "Total Pot"
@@ -900,16 +909,34 @@ function Goldeneyes.display()
 
     -- === 5. SETTINGS FOOTER ===
     cecho("\n<goldeneyesCopper>  Active Settings:<reset>")
-    cecho(string.format("\n<goldeneyesSilver>  Tracker: [%s] | Split: [%s] | Collector: [%s]", status, strat_text, role))
     
-    local output = "\n<goldeneyesSilver>  Group: [<goldeneyesGold>" .. (g_cont:find("/") and "Custom" or g_cont:title()) .. "<goldeneyesSilver>]"
-    if p_cont:lower() ~= "none" then
-        output = output .. " | Personal: [<goldeneyesGold>" .. (p_cont:find("/") and "Custom" or p_cont:title()) .. "<goldeneyesSilver>]"
-    end
-    if o_cont:lower() ~= "none" then
-        output = output .. " | Org: [<goldeneyesGold>" .. (o_cont:find("/") and "Custom" or o_cont:title()) .. "<goldeneyesSilver>]"
-    end
-    cecho(output)
+    -- Tracker, Split, Collector
+    cecho("\n<goldeneyesSilver>  Tracker: [")
+    local next_tracker = Goldeneyes.enabled and "off" or "on"
+    cechoLink(status, string.format([[Goldeneyes.toggle("%s"); Goldeneyes.display()]], next_tracker), "Click to toggle tracker", true)
+    
+    cecho("<goldeneyesSilver>] | Split: [")
+    local next_strat = (Goldeneyes.config.split_strategy == "even") and "fair" or "even"
+    cechoLink(strat_text, string.format([[Goldeneyes.set_strategy("%s"); Goldeneyes.display()]], next_strat), "Click to toggle split strategy", true)
+    
+    cecho("<goldeneyesSilver>] | Collector: [")
+    cechoLink(role, [[clearCmdLine() appendCmdLine("gold accountant ")]], "Click to change accountant", true)
+    cecho("<goldeneyesSilver>]")
+
+    -- Containers
+    local g_cont_text = g_cont:find("/") and "Custom" or g_cont:title()
+    local p_cont_text = p_cont:find("/") and "Custom" or p_cont:title()
+    local o_cont_text = o_cont:find("/") and "Custom" or o_cont:title()
+    
+    local syntax_hint = [[Goldeneyes.echo("Setting %s container. <grey>Use <goldeneyesGold><amount><grey> for custom sequences (e.g. <goldeneyesGold>get gold from pack/put <amount> gold in wallet<grey>)"); clearCmdLine(); appendCmdLine("gold container %s ")]]
+
+    cecho("\n<goldeneyesSilver>  Group: [<goldeneyesGold>")
+    cechoLink(g_cont_text, string.format(syntax_hint, "group", "group"), "Click to set Group container", true)
+    cecho("<goldeneyesSilver>] | Personal: [<goldeneyesGold>")
+    cechoLink(p_cont_text, string.format(syntax_hint, "personal", "personal"), "Click to set Personal container", true)
+    cecho("<goldeneyesSilver>] | Org: [<goldeneyesGold>")
+    cechoLink(o_cont_text, string.format(syntax_hint, "org", "org"), "Click to set Org container", true)
+    cecho("<goldeneyesSilver>]")
     
     if g_cont:find("/") or p_cont:find("/") or o_cont:find("/") then
         cecho("\n<grey>  (Use <goldeneyesGold>gold container <type> <name><grey> to edit custom sequences)")
@@ -917,6 +944,13 @@ function Goldeneyes.display()
 
     cecho("\n<goldeneyesGold>=======================================================================<reset>\n")
     if type(Goldeneyes.showprompt) == "function" then Goldeneyes.showprompt() end
+
+    -- Silently update cap in background (Throttled to once every 30s)
+    if os.time() - (Goldeneyes.last_cap_check or 0) > 30 then
+        Goldeneyes.checking_cap = true
+        Goldeneyes.last_cap_check = os.time()
+        send("goldcap", false)
+    end
 end
 
 function Goldeneyes.announce(channel)
@@ -1321,6 +1355,18 @@ function Goldeneyes.create_triggers()
     for _, id in pairs(Goldeneyes.alias_ids) do killAlias(id) end
     Goldeneyes.trigger_ids = {}
     Goldeneyes.alias_ids = {}
+
+    table.insert(Goldeneyes.trigger_ids, tempRegexTrigger("^You have made ([\\d,]+) out of ([\\d,]+) gold.*", 
+    [[
+        Goldeneyes.cap = Goldeneyes.cap or {}
+        Goldeneyes.cap.current = tonumber((matches[2]:gsub(",", "")))
+        Goldeneyes.cap.max = tonumber((matches[3]:gsub(",", "")))
+
+        if Goldeneyes.checking_cap then
+            deleteLine()
+            Goldeneyes.checking_cap = false
+        end
+    ]]))
 
     table.insert(Goldeneyes.trigger_ids, tempRegexTrigger("(?:gold|sovereigns).* fl(?:ies|ying) into the hands of (\\w+)\\.", 
     [[
