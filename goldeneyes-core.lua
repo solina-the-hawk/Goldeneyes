@@ -568,8 +568,34 @@ function Goldeneyes.deposit_org(note, force)
         cecho("\n")
         return
     end
+
+    local p_cont = Goldeneyes.config.personal_container or "none"
+    local o_cont = Goldeneyes.config.org_container or "none"
+    if o_cont:lower() == "none" then o_cont = p_cont end
+
+    local floor_amt = math.floor(amt)
+
+    if o_cont:lower() ~= "none" and o_cont:lower() ~= "inventory" then
+        if o_cont:find("/") then
+            -- Inverse custom sequence handling (similar to pull_personal)
+            local commands = o_cont:split("/")
+            for _, cmd in ipairs(commands) do
+                cmd = cmd:gsub("^%s+", ""):gsub("%s+$", "")
+                if cmd:find("<amount>") then
+                    cmd = cmd:gsub("^put ", "get ")
+                    cmd = cmd:gsub(" put ", " get ")
+                    cmd = cmd:gsub(" in ", " from ")
+                    cmd = cmd:gsub(" into ", " from ")
+                    cmd = cmd:gsub("<amount>", tostring(floor_amt))
+                end
+                send("queue add eqbal " .. cmd)
+            end
+        else
+            send("queue add eqbal get " .. floor_amt .. " gold from " .. o_cont)
+        end
+    end
     
-    local deposit_cmd = "deposit " .. math.floor(amt) .. " gold " .. org_name
+    local deposit_cmd = "deposit " .. floor_amt .. " gold " .. org_name
     if note and note ~= "" then
         deposit_cmd = deposit_cmd .. " " .. note
     end
@@ -898,7 +924,9 @@ function Goldeneyes.announce(channel)
     local tax_str = ""
     
     if Goldeneyes.org and Goldeneyes.org.name and Goldeneyes.org.mode == "pot" and Goldeneyes.org.gold > 0 then
-        tax_str = string.format(" (after %s gold withheld for %s)", Goldeneyes.format(math.floor(Goldeneyes.org.gold)), Goldeneyes.org.name)
+        local withheld = math.floor(Goldeneyes.org.gold)
+        local remainder = math.floor(Goldeneyes.total - withheld)
+        tax_str = string.format(", with %s gold withheld for %s. %s gold remains to split", Goldeneyes.format(withheld), Goldeneyes.org.name, Goldeneyes.format(remainder))
     end
     
     if channel == "tell" then
@@ -1134,7 +1162,9 @@ function Goldeneyes.distribute(channel)
     local silent = (channel == "none")
     local tax_str = ""
     if Goldeneyes.org and Goldeneyes.org.name and Goldeneyes.org.mode == "pot" and Goldeneyes.org.gold > 0 then
-        tax_str = string.format(" (after %s gold withheld for %s)", Goldeneyes.format(math.floor(Goldeneyes.org.gold)), Goldeneyes.org.name)
+        local withheld = math.floor(Goldeneyes.org.gold)
+        local remainder = math.floor(Goldeneyes.total - withheld)
+        tax_str = string.format(", with %s gold withheld for %s. %s gold remains to split", Goldeneyes.format(withheld), Goldeneyes.org.name, Goldeneyes.format(remainder))
     end
 
     if Goldeneyes.config.split_strategy == "even" then
