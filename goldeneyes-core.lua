@@ -1561,7 +1561,7 @@ function Goldeneyes.create_triggers()
         Goldeneyes.add_expense(amt) 
     ]]))
     
-    table.insert(Goldeneyes.trigger_ids, tempRegexTrigger("^You give ([\\d,]+) gold to (\\w+)", 
+    table.insert(Goldeneyes.trigger_ids, tempRegexTrigger("^You give ([\\d,]+) gold(?: sovereigns)? to (\\w+)", 
     [[ 
         local amount = tonumber((matches[2]:gsub(",", "")))
         local target = matches[3]:lower()
