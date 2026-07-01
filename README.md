@@ -49,13 +49,13 @@ All commands can be prefixed with either `goldeneyes` or `gold`.
 * `gold help`: View the categorized help menu (e.g., gold help org, gold help party).
 * `gold groupscan`: Automatically scan and add your current party/group/intrepid members to the ledger.
 * `gold`: Displays the main tracking ledger and your current configuration.
-* `gold` org <name|off> <%> [pot|personal]: Set an organizational tax, or disable it.
-* `gold` container <group|personal|org> <sequence>: Set a container sequence using <amount> as a placeholder.
-* `gold` stash [group|personal]: Instantly stow loose gold into the specified container.
-* `gold` pull <amount>: Automatically withdraws gold using your personal container sequence.
-* `gold` org deposit [note]: Automatically deposits held org funds into the bank and clears the ledger.
-* `gold` distribute [channel]: Withdraws the exact hunt yield, staggers payouts safely, and auto-resets the tracker.
-* `gold` report [channel]: Announces totals to party, intrepid, say, or individually via tell.
+* `gold org <name|off> <%> [pot|personal]`: Set an organizational tax, or disable it.
+* `gold container <group|personal|org> <sequence>`: Set a container sequence using <amount> as a placeholder.
+* `gold stash [group|personal]`: Instantly stow loose gold into the specified container.
+* `gold pull <amount>`: Automatically withdraws gold using your personal container sequence.
+* `gold org deposit [note]`: Automatically deposits held org funds into the bank and clears the ledger.
+* `gold distribute [channel]`: Withdraws the exact hunt yield, staggers payouts safely, and auto-resets the tracker.
+* `gold report [channel]`: Announces totals to party, intrepid, say, or individually via tell.
 
 ---
 
